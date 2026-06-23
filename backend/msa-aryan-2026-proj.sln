@@ -1,0 +1,28 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "msa-aryan-2026-proj.Api", "msa-aryan-2026-proj.Api\msa-aryan-2026-proj.Api.csproj", "{BAA650BD-901E-499C-96B5-EB19B9D503EE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "msa-aryan-2026-proj.Api.Tests", "msa-aryan-2026-proj.Api.Tests\msa-aryan-2026-proj.Api.Tests.csproj", "{C7FB102C-A96E-429F-8C68-F9241EC70F36}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{BAA650BD-901E-499C-96B5-EB19B9D503EE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BAA650BD-901E-499C-96B5-EB19B9D503EE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BAA650BD-901E-499C-96B5-EB19B9D503EE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BAA650BD-901E-499C-96B5-EB19B9D503EE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C7FB102C-A96E-429F-8C68-F9241EC70F36}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C7FB102C-A96E-429F-8C68-F9241EC70F36}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C7FB102C-A96E-429F-8C68-F9241EC70F36}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C7FB102C-A96E-429F-8C68-F9241EC70F36}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

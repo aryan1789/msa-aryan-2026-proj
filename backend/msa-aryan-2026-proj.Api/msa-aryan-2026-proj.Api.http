@@ -1,0 +1,6 @@
+@msa_aryan_2026_proj.Api_HostAddress = http://localhost:5194
+
+GET {{msa_aryan_2026_proj.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
