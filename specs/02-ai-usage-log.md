@@ -53,6 +53,44 @@ a starting point to verify against official docs and the actual error messages, 
 
 ---
 
+## 2026-06-25 — Database setup: EF Core + Dockerised PostgreSQL
+
+**Goal:** Connect the .NET API to a real database, with PostgreSQL running in Docker for a
+reproducible local setup.
+
+**How AI was used:** Guidance setting up a `docker-compose.yml` for PostgreSQL, then wiring up
+EF Core (a `DbContext`, the first `User` entity, DI registration, and the initial migration). I
+ran every command myself and asked AI to explain the underlying concepts — ORMs,
+`DbContext`/`DbSet`, migrations, dependency injection, and how Docker images/volumes/ports work —
+rather than copy-pasting code I didn't understand.
+
+**Example prompts (learning-oriented):**
+> "Can you explain what the API and test projects are for?"
+> "Why is a separate test project required? Can't the tests and API be in the same project?"
+> "What is Docker and how will we be using it here?"
+> (plus pasting build/runtime errors and asking for an explanation of the *cause*, not just a fix)
+
+**Notable debugging / learning moments:**
+
+1. **Postgres credentials baked into the Docker volume** — got `28P01: password authentication
+   failed`. Learned that `POSTGRES_PASSWORD` is only applied when the data volume is *first*
+   created; changing it later has no effect. Fixed by recreating the volume with
+   `docker compose down -v` so it re-initialised with the correct credentials.
+
+2. **Missing namespace** — a new `User.cs` had no `namespace` line, causing `CS0234`. Learned
+   that C# namespaces aren't set automatically by folder location; they must be declared
+   explicitly in each file.
+
+3. **Unsaved file** — an apparent dependency-injection error (`Unable to resolve service for
+   DbContextOptions`) was actually caused by `Program.cs` not being saved. Lesson: build tools
+   only ever see what's written to disk, so check for unsaved-file indicators first.
+
+**Critical evaluation:** I focused on understanding each error's root cause
+(volume-persisted credentials, C# namespace rules, editor save state) rather than blindly
+applying fixes, so I can recognise and avoid them next time.
+
+---
+
 ## Template for future entries
 
 ```
