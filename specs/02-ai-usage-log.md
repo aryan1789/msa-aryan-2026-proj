@@ -91,6 +91,37 @@ applying fixes, so I can recognise and avoid them next time.
 
 ---
 
+## 2026-06-25 — Scalar API documentation
+
+**Goal:** Replace the default Swagger UI with Scalar for interactive API documentation (a basic
+requirement of the assessment).
+
+**How AI was used:** Clarified how the pieces fit together — that OpenAPI is the underlying
+spec format and Swagger UI / Scalar are interchangeable viewers of it — then guided swapping the
+NuGet packages (removing Swashbuckle, adding `Microsoft.AspNetCore.OpenApi` and
+`Scalar.AspNetCore`) and updating `Program.cs`.
+
+**Critical evaluation:** Understood the swap conceptually (spec vs. viewer) rather than treating
+it as a magic incantation, so I can explain why the change works.
+
+---
+
+## 2026-06-25 — Authentication & security (self-directed)
+
+**Goal:** Build the authentication/security feature (registration with password hashing, then
+login + JWT, then RBAC).
+
+**Approach:** For this feature I chose to research and write the implementation myself using
+official documentation (Microsoft Learn) and Google, rather than have AI generate the code. AI's
+role here was limited to up-front concept explanation (how password hashing, JWT, and DTOs work
+and why), pointing me at the right docs/search terms, and reviewing my own code afterwards for
+correctness and security gaps. The goal was to genuinely understand auth — the most
+security-critical part of the app — so I can defend every line of it.
+
+*(This entry will be expanded with specifics once the implementation is complete.)*
+
+---
+
 ## Template for future entries
 
 ```
