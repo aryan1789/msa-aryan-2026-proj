@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using BCryptNet = BCrypt.Net.BCrypt;
 using msa_aryan_2026_proj.Api.Data;
 using msa_aryan_2026_proj.Api.Models;
 
@@ -20,11 +22,19 @@ public class AuthController : ControllerBase
     [HttpPost("register")]
     public async Task<ActionResult> Register([FromBody] RegisterRequest request)
     {
+        var existingUser = await _dbContext.Users
+            .AnyAsync(user => user.Email == request.Email);
+
+        if (existingUser)
+        {
+            return Conflict(new { message = "An account with this email already exists." });
+        }
+
         var user = new User
         {
             Email = request.Email,
             DisplayName = request.DisplayName,
-            PasswordHash = request.Password
+            PasswordHash = BCryptNet.HashPassword(request.Password)
         };
 
         await _dbContext.Users.AddAsync(user);
@@ -34,9 +44,7 @@ public class AuthController : ControllerBase
         {
             user.Id,
             user.Email,
-            user.DisplayName,
-            user.CreatedAt,
-            user.TotalXp
+            user.DisplayName
         });
     }
 }
