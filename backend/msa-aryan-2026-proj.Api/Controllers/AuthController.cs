@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.ComponentModel.DataAnnotations;
 using BCryptNet = BCrypt.Net.BCrypt;
 using msa_aryan_2026_proj.Api.Data;
 using msa_aryan_2026_proj.Api.Models;
@@ -51,7 +52,16 @@ public class AuthController : ControllerBase
 
 public class RegisterRequest
 {
+    [Required]
+    [EmailAddress]
+    [StringLength(254)]
     public string Email { get; set; } = string.Empty;
+
+    [Required]
+    [StringLength(100)]
     public string DisplayName { get; set; } = string.Empty;
+
+    [Required]
+    [StringLength(72, MinimumLength = 8)]
     public string Password { get; set; } = string.Empty;
 }

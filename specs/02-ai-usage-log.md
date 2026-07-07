@@ -118,7 +118,66 @@ and why), pointing me at the right docs/search terms, and reviewing my own code 
 correctness and security gaps. The goal was to genuinely understand auth — the most
 security-critical part of the app — so I can defend every line of it.
 
-*(This entry will be expanded with specifics once the implementation is complete.)*
+*(Implementation progress is logged in the dated entries below.)*
+
+---
+
+## 2026-07-05 — User registration endpoint (self-directed, AI-reviewed)
+
+**Goal:** Implement `POST /Auth/register` — accept new user details, store the user with a
+hashed password, and reject duplicate email addresses.
+
+**How I worked:** I wrote the endpoint myself using the official ASP.NET Core Web API
+documentation on Microsoft Learn (controllers, `[ApiController]`, attribute routing, model
+binding, action return types), the "Create a web API with ASP.NET Core controllers" tutorial
+(the POST action and the "Prevent over-posting" / DTO guidance), and the BCrypt.Net-Next README
+for password hashing. AI's role was to point me to those resources and then to review my code.
+
+**What the AI review caught, and I then fixed:**
+- **Over-posting:** I first bound the request directly to the `User` entity, which would let a
+  client set fields like `Id` or `PasswordHash`. I replaced it with a dedicated `RegisterRequest`
+  DTO exposing only Email, DisplayName, and Password.
+- **Unhashed password:** my initial version stored the raw password in the `PasswordHash` column.
+  I fixed it to hash with `BCrypt.HashPassword` before saving.
+- **Duplicate emails:** added an `AnyAsync` check that returns `409 Conflict` when the email is
+  already registered.
+
+**Verification (manual, end-to-end):** registered a user through the Scalar UI (200 OK), confirmed
+in the database that `PasswordHash` was a BCrypt `$2a$...` hash rather than plaintext, and
+confirmed that repeating the registration returns `409 Conflict`.
+
+**Still to do for the security feature:** input validation (data annotations), a unique index on
+Email, login with `BCrypt.Verify`, JWT issuing/validation, and RBAC.
+
+---
+
+## 2026-07-07 — Registration input validation (self-directed, AI-reviewed)
+
+**Goal:** Reject malformed registration input (missing/invalid email, too-short password) before
+it reaches the database, without hand-writing validation checks in the action method.
+
+**How I worked:** I added data-annotation attributes to the `RegisterRequest` DTO myself, working
+from the "Model validation in ASP.NET Core" docs on Microsoft Learn. Because the controller is
+marked `[ApiController]`, the framework validates the model automatically and returns a `400` with
+a problem-details body before the action runs, so I didn't need an explicit `ModelState.IsValid`
+check. I chose: `[Required]` on all three fields; `[EmailAddress]` on Email; `[StringLength(254)]`
+for Email (the RFC 5321 address limit); `[StringLength(100)]` for DisplayName; and
+`[StringLength(72, MinimumLength = 8)]` for Password. I asked AI to review afterwards.
+
+**What the AI review confirmed / surfaced:** No bugs — the attributes were correct. The review
+confirmed two things I wanted to be sure of and could then explain:
+- `[Required]` rejects empty and whitespace-only strings by default (`AllowEmptyStrings` is false),
+  so an empty-string email is caught by `[Required]` before `[EmailAddress]` ever runs — the
+  `= string.Empty` default doesn't slip past validation.
+- The 72-character password cap lines up with BCrypt's 72-*byte* input limit, but `StringLength`
+  counts characters, not bytes, so a password of 72 multi-byte characters could still be silently
+  truncated by BCrypt. A known edge case I've noted rather than a bug for this project.
+
+**Verification:** project builds with 0 errors; the `[ApiController]` automatic-400 behaviour is
+what enforces the annotations at runtime.
+
+**Still to do for the security feature:** a unique index on Email (DB-level guarantee behind the
+existing `AnyAsync` check), login with `BCrypt.Verify`, JWT issuing/validation, and RBAC.
 
 ---
 
