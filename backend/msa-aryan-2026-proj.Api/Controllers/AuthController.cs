@@ -1,10 +1,14 @@
+using System.IdentityModel.Tokens.Jwt;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using System.ComponentModel.DataAnnotations;
+using System.Security.Claims;
 using BCryptNet = BCrypt.Net.BCrypt;
 using msa_aryan_2026_proj.Api.Data;
 using msa_aryan_2026_proj.Api.Models;
+using msa_aryan_2026_proj.Api.Services;
 
 namespace msa_aryan_2026_proj.Api.Controllers;
 
@@ -13,16 +17,17 @@ namespace msa_aryan_2026_proj.Api.Controllers;
 public class AuthController : ControllerBase
 {
     private const string InvalidCredentialsMessage = "Invalid email or password.";
-    // Single reusable hash to equalize timing when the account does not exist.
     private static readonly string DummyPasswordHash = BCryptNet.HashPassword("dummy-password-value");
 
     private readonly ILogger<AuthController> _logger;
     private readonly AppDbContext _dbContext;
+    private readonly ITokenService _tokenService;
 
-    public AuthController(ILogger<AuthController> logger, AppDbContext dbContext)
+    public AuthController(ILogger<AuthController> logger, AppDbContext dbContext, ITokenService tokenService)
     {
         _logger = logger;
         _dbContext = dbContext;
+        _tokenService = tokenService;
     }
 
     [HttpPost("register")]
@@ -74,7 +79,6 @@ public class AuthController : ControllerBase
 
         if (user is null)
         {
-            // Keep response timing closer to the "wrong password" path to reduce account-enumeration signal.
             BCryptNet.Verify(request.Password, DummyPasswordHash);
             return Unauthorized(new { message = InvalidCredentialsMessage });
         }
@@ -88,9 +92,24 @@ public class AuthController : ControllerBase
 
         return Ok(new
         {
+            token = _tokenService.CreateToken(user),
             user.Id,
             user.Email,
             user.DisplayName
+        });
+    }
+
+    [Authorize]
+    [HttpGet("me")]
+    public ActionResult Me()
+    {
+        var id = User.FindFirstValue(JwtRegisteredClaimNames.Sub);
+        var email = User.FindFirstValue(JwtRegisteredClaimNames.Email);
+
+        return Ok(new
+        {
+            id,
+            email
         });
     }
 }

@@ -251,6 +251,47 @@ simple so the token slots straight in), and RBAC.
 
 ---
 
+## 2026-07-09 — JWT issuing + validation (self-directed, AI-reviewed)
+
+**Goal:** Issue a signed JWT on successful login and validate it on protected endpoints, with the
+API acting as its own token issuer (single API, shared symmetric key).
+
+**How I worked:** Wrote it myself across four pieces — a `TokenService` that builds the token
+(`sub`/`email`/`jti` claims, `SymmetricSecurityKey` + `SigningCredentials` with HS256, expiry),
+`AddJwtBearer` wiring with `TokenValidationParameters` in `Program.cs`, hooking the token into the
+login success path, and a `[Authorize]`-protected `GET /Auth/me` to exercise the validation side.
+
+**Documentation gap I had to reason around:** there's no single official Microsoft tutorial for a
+self-contained API that *issues* its own tokens with a symmetric key — the "Generate tokens with
+dotnet user-jwts" doc covers the validation/config side but delegates issuance to a dev CLI tool,
+and explicitly notes a production app "might get the JWT from a Security token service." So for the
+issuance code I stitched together the API reference for the token primitives (`SymmetricSecurityKey`,
+`SigningCredentials`, `JwtSecurityTokenHandler`) rather than following one walkthrough, and
+cross-checked community Q&A examples against the reference rather than trusting them verbatim.
+
+**Security reasoning I applied:**
+- **Signing key kept out of source control** — `appsettings.json` holds only Issuer/Audience/
+  ExpiryMinutes; the key lives in user-secrets (64 bytes, well above the 256-bit HS256 minimum).
+  A leaked key means anyone can forge tokens for any user, so it must never be committed.
+- **A JWT is signed, not encrypted** — the payload is readable base64, so I put only an id, email,
+  and jti in the claims, nothing sensitive.
+- **Validate everything** — issuer, audience, lifetime, and signing key all checked, so a token
+  that's expired, for a different audience, or signed with another key is rejected.
+- Two hardening touches: `ClockSkew` reduced to 1 minute (tightening the sloppy 5-minute default),
+  and `MapInboundClaims = false` so claims keep their original names (`sub`/`email`).
+- Middleware order: `UseAuthentication()` before `UseAuthorization()` — authentication (who you
+  are) must run before authorization (what you're allowed to do).
+
+**Verification (end-to-end):** logged in and decoded the returned token to confirm the claims,
+issuer, audience, expiry, and `HS256` header; then hit `/Auth/me` with no token (`401`), a valid
+token (`200` returning the caller's id/email from the validated claims), and a garbage token
+(`401`) — proving both the issuing and validation halves.
+
+**Still to do for the security feature:** RBAC (Leader vs Member — layers a role claim on the token
+and role-gated endpoints, and depends on the `CrewMembership` entity from Week 2) and rate limiting.
+
+---
+
 ## Template for future entries
 
 ```
