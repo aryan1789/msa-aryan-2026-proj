@@ -181,6 +181,42 @@ existing `AnyAsync` check), login with `BCrypt.Verify`, JWT issuing/validation, 
 
 ---
 
+## 2026-07-08 — Enforcing unique emails end-to-end (self-directed, AI-reviewed)
+
+**Goal:** Make email uniqueness an actual guarantee rather than a best-effort check, and make
+`Foo@x.com` and `foo@x.com` count as the same account.
+
+**How I worked:** Three changes, written myself from the EF Core and Npgsql docs:
+1. **DB-level unique index** — added `HasIndex(u => u.Email).IsUnique()` in `OnModelCreating`,
+   generated the `AddUniqueEmailIndex` migration, read the generated `CreateIndex(unique: true)`
+   before applying, and ran `database update`.
+2. **Case normalization** — normalize the email once at the top of the action with
+   `Trim().ToLowerInvariant()` and use that single value for both the `AnyAsync` lookup and the
+   stored entity, so the check and the saved row can't disagree.
+3. **Race backstop** — wrapped `SaveChangesAsync` in a `try/catch (DbUpdateException) when (...)`
+   exception filter that returns `409` only for a Postgres unique-violation, so the DB guarantee
+   surfaces as a clean `409` instead of an unhandled `500`.
+
+**Why this design (the reasoning I worked through):**
+- The `AnyAsync` pre-check alone is a check-then-act race: two simultaneous requests can both pass
+  it and both insert. The unique index is the real guarantee; the pre-check just provides the
+  friendly common-path message. Belt and suspenders.
+- Used `ToLowerInvariant()` rather than `ToLower()` on purpose — culture-sensitive lowercasing
+  (e.g. the Turkish dotless-i) could normalize the same email differently depending on server
+  locale, which would break matching.
+- The exception filter matches *only* `PostgresErrorCodes.UniqueViolation` so other DB failures
+  still surface as `500` rather than being mislabelled as duplicate-email.
+
+**Verification (end-to-end):** built with 0 errors, ran the API and exercised `/Auth/register` —
+first registration returned `200` and stored the email lowercased; re-registering the same address
+in **UPPERCASE** returned `409` (proving case-insensitivity); and an invalid email plus a 5-char
+password returned `400` with per-field validation errors.
+
+**Still to do for the security feature:** login with `BCrypt.Verify`, JWT issuing/validation,
+and RBAC.
+
+---
+
 ## Template for future entries
 
 ```

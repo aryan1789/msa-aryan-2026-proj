@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using System.ComponentModel.DataAnnotations;
 using BCryptNet = BCrypt.Net.BCrypt;
 using msa_aryan_2026_proj.Api.Data;
@@ -23,8 +24,10 @@ public class AuthController : ControllerBase
     [HttpPost("register")]
     public async Task<ActionResult> Register([FromBody] RegisterRequest request)
     {
+        var email = request.Email.Trim().ToLowerInvariant();
+
         var existingUser = await _dbContext.Users
-            .AnyAsync(user => user.Email == request.Email);
+            .AnyAsync(user => user.Email == email);
 
         if (existingUser)
         {
@@ -33,13 +36,21 @@ public class AuthController : ControllerBase
 
         var user = new User
         {
-            Email = request.Email,
+            Email = email,
             DisplayName = request.DisplayName,
             PasswordHash = BCryptNet.HashPassword(request.Password)
         };
 
         await _dbContext.Users.AddAsync(user);
-        await _dbContext.SaveChangesAsync();
+        try
+        {
+            await _dbContext.SaveChangesAsync();
+        }
+        catch (DbUpdateException ex) when (
+            ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+        {
+            return Conflict(new { message = "An account with this email already exists." });
+        }
 
         return Ok(new
         {
