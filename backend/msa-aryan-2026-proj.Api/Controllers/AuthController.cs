@@ -12,6 +12,10 @@ namespace msa_aryan_2026_proj.Api.Controllers;
 [Route("[controller]")]
 public class AuthController : ControllerBase
 {
+    private const string InvalidCredentialsMessage = "Invalid email or password.";
+    // Single reusable hash to equalize timing when the account does not exist.
+    private static readonly string DummyPasswordHash = BCryptNet.HashPassword("dummy-password-value");
+
     private readonly ILogger<AuthController> _logger;
     private readonly AppDbContext _dbContext;
 
@@ -59,6 +63,36 @@ public class AuthController : ControllerBase
             user.DisplayName
         });
     }
+
+    [HttpPost("login")]
+    public async Task<ActionResult> Login([FromBody] LoginRequest request)
+    {
+        var email = request.Email.Trim().ToLowerInvariant();
+
+        var user = await _dbContext.Users
+            .FirstOrDefaultAsync(existingUser => existingUser.Email == email);
+
+        if (user is null)
+        {
+            // Keep response timing closer to the "wrong password" path to reduce account-enumeration signal.
+            BCryptNet.Verify(request.Password, DummyPasswordHash);
+            return Unauthorized(new { message = InvalidCredentialsMessage });
+        }
+
+        var passwordMatches = BCryptNet.Verify(request.Password, user.PasswordHash);
+
+        if (!passwordMatches)
+        {
+            return Unauthorized(new { message = InvalidCredentialsMessage });
+        }
+
+        return Ok(new
+        {
+            user.Id,
+            user.Email,
+            user.DisplayName
+        });
+    }
 }
 
 public class RegisterRequest
@@ -76,3 +110,14 @@ public class RegisterRequest
     [StringLength(72, MinimumLength = 8)]
     public string Password { get; set; } = string.Empty;
 }
+
+public class LoginRequest
+{
+    [Required]
+    [EmailAddress]
+    public string Email { get; set; } = string.Empty;
+
+    [Required]
+    public string Password { get; set; } = string.Empty;
+}
+    

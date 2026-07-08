@@ -217,6 +217,40 @@ and RBAC.
 
 ---
 
+## 2026-07-08 — Login endpoint with enumeration/timing hardening (self-directed, AI-reviewed)
+
+**Goal:** Implement `POST /Auth/login` — verify an email/password pair against the stored BCrypt
+hash and return `200` on success / `401` on failure, without leaking which emails have accounts.
+
+**How I worked:** Wrote the endpoint myself from the BCrypt.Net-Next README (`Verify`). It
+normalizes the email the same way registration does (`Trim().ToLowerInvariant()`) so a user who
+registered as `Foo@x.com` can still log in, looks the user up with `FirstOrDefaultAsync`, and
+checks the password with `BCryptNet.Verify`. `LoginRequest` uses `[Required]` + `[EmailAddress]`
+but deliberately no password `MinimumLength` — password policy belongs on registration, and a
+length rule on login would leak policy and reject legacy passwords.
+
+**Security reasoning I applied (the graded part):**
+- **No user enumeration:** both the "no such account" and "wrong password" paths return the same
+  `401` with the same `"Invalid email or password."` message, so the response can't be used to
+  discover which emails are registered.
+- **Timing side-channel:** returning early when the user is null would make that path much faster
+  than the wrong-password path (which runs slow BCrypt), which itself leaks whether the email
+  exists. I mitigated it by running `BCrypt.Verify` against a reusable dummy hash on the null path
+  so both branches take comparable time. The dummy hash is computed once as `static readonly`.
+- **Known asymmetry I can speak to:** login is enumeration-safe, but registration intentionally
+  isn't — it returns `409 "account already exists"` because the sign-up UX needs to tell the user
+  the email is taken. A deliberate trade-off rather than an oversight.
+
+**Verification (end-to-end):** ran the API and exercised `/Auth/login` — correct credentials → `200`;
+the same email in **UPPERCASE** with the correct password → `200` (normalization matches register);
+wrong password → `401`; a nonexistent account → `401` with an identical body; and a missing password
+→ `400` validation error.
+
+**Still to do for the security feature:** JWT issuing/validation (the login success path is kept
+simple so the token slots straight in), and RBAC.
+
+---
+
 ## Template for future entries
 
 ```
