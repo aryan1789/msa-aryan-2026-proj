@@ -292,6 +292,39 @@ and role-gated endpoints, and depends on the `CrewMembership` entity from Week 2
 
 ---
 
+## 2026-07-09 — Rate limiting on the auth endpoints (self-directed, AI-reviewed)
+
+**Goal:** Throttle `/Auth/login` and `/Auth/register` so they can't be used for brute-force or
+credential-stuffing — an unthrottled login is a free password-guessing oracle.
+
+**How I worked:** Used ASP.NET Core's built-in rate limiting (no NuGet package needed since .NET 7),
+from the "Rate limiting middleware in ASP.NET Core" docs. Registered a named `"auth"` policy with
+`AddRateLimiter`, applied it with `[EnableRateLimiting("auth")]` on the login and register actions,
+and added `app.UseRateLimiter()` to the pipeline.
+
+**Design decisions (and why):**
+- **Fixed window, by client IP, 10 requests/minute.** Fixed window is the simplest algorithm to
+  reason about and explain; partitioning by `RemoteIpAddress` stops one attacker from starving
+  everyone else. `QueueLimit = 0` so excess attempts are rejected immediately rather than queued.
+- **Scoped to the auth endpoints, not global** — brute-force is what matters here, and I didn't
+  want to throttle ordinary app traffic.
+- **`RejectionStatusCode = 429`** — the middleware defaults to `503`, which is misleading; a
+  rate-limited client should get `429 Too Many Requests`.
+
+**Known production follow-up (noted, not a bug):** behind a proxy/load balancer (the planned Azure
+Container Apps deploy), `RemoteIpAddress` is the proxy's IP, which would collapse every client into
+one partition. The fix is `ForwardedHeaders` middleware to recover the real client IP — not needed
+locally, but required before this is effective in production.
+
+**Verification (end-to-end):** fired 14 login attempts in one window against the running API — the
+first 10 returned `401` (normal invalid-credentials) and attempts 11–14 returned `429`, confirming
+the limit trips at exactly `PermitLimit` and returns `429` rather than the default `503`.
+
+**Still to do for the security feature:** RBAC (Leader vs Member), which depends on the
+`CrewMembership` entity from Week 2.
+
+---
+
 ## Template for future entries
 
 ```
