@@ -125,3 +125,33 @@ be able to act as another), which is distinct from RBAC and nearly free given th
 
 **Consequence:** supersedes the RBAC mentions in D3 and the earlier weekly plan; the three marked
 advanced requirements are **Security Measures, WebSockets, and Docker** (see D4).
+
+---
+
+## D10 — Measure attendance (behaviour), not workout outcomes
+
+**Decision:** A check-in measures *that you showed up and trained*, counted against a weekly
+target — not what you did or how much you progressed. No structured exercise/sets/reps/weight
+data. `CheckIn.Note` (free text, and made **required**) is the only "what I did" capture, kept as
+a light quality signal rather than a workout log.
+
+**The tension considered:** "Someone could show up and make no progress, so counting attendance
+feels pointless." Real, but resolved in favour of attendance:
+
+- **Behaviour is the controllable lever.** You can choose to show up; you can't directly choose an
+  outcome (strength/weight depend on genetics, diet, sleep, time). Habit design (streaks,
+  "don't break the chain") measures behaviour for exactly this reason — for the target user, who
+  *flakes*, consistency is the binding constraint, and consistency produces results.
+- **The crew is the anti-gaming mechanism.** It's a small group of friends who see each other, so
+  phoning it in isn't invisible. Social visibility deters slacking far more than any metric could;
+  gaming a commitment device made of your own friends is self-defeating.
+- **Measuring real fitness outcomes would recreate Hevy/Strong** — the exact workout-logger model
+  D1 rejects. It would balloon scope, dilute the differentiator, and outcomes are slow/noisy/unfair
+  to gamify weekly.
+
+**Reframing D1's "outcomes not engagement":** "outcomes" contrasts with *social-feed vanity
+metrics*, meaning real behaviour change vs app dopamine — not clinical fitness results. Read that
+way, consistent attendance *is* the outcome.
+
+**Consequence:** `WeeklyTarget`/`DefaultWeeklyTarget` are `int` (a session count); `CheckIn.Note`
+will be required when that entity is built. Does not affect the `Crew`/`CrewMembership` entities.

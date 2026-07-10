@@ -325,6 +325,43 @@ the limit trips at exactly `PermitLimit` and returns `429` rather than the defau
 
 ---
 
+## 2026-07-10 — Crew + CrewMembership data model (self-directed, AI-reviewed)
+
+**Goal:** Add the first Week 2 entities — `Crew` and `CrewMembership` — with correct relationships
+and a migration, as the foundation for crews/memberships (and everything that references them).
+
+**Design discussion before writing any code:** I worked through two product/modelling questions
+with AI acting as a sounding board rather than a code generator:
+- *Why is `CrewMembership` needed — isn't it just a middleman to avoid many-to-many?* Concluded it's
+  a **join entity with payload**: the relationship carries data (`WeeklyTarget`, `CurrentStreak`)
+  that belongs to the user-in-a-crew pairing, not to either entity alone, which is what forces it
+  to be a first-class entity rather than an implicit join table.
+- *Should we track workout progress, or just attendance?* Decided attendance-only (recorded as
+  design decision D10): behaviour is the controllable lever, the crew provides social anti-gaming,
+  and measuring real fitness outcomes would recreate the Hevy/Strong logger that D1 rejects.
+- Also confirmed RBAC is out of scope (D9), so `CrewMembership` has no `Role` field.
+
+**How I worked:** Wrote both entities myself as plain `Models/` classes (matching `User.cs` style),
+added navigation properties, and configured relationships in `OnModelCreating` from the EF Core
+relationships + cascade-delete docs. AI reviewed the modelling before I generated the migration.
+
+**The modelling decision that needed care — cascade paths:** there are two User→Crew relationships
+(membership, and the `CreatedByUserId` creator link). Leaving both User-facing relationships as
+cascade risks multiple-cascade-path problems. I set the **creator** FK to `Restrict` (a user can't
+be deleted while they own crews) and the two **membership** FKs to `Cascade`, which also breaks the
+User→Crew→Membership→User cycle. Also added a composite unique index on `(CrewId, UserId)` so a user
+can't join the same crew twice, and a unique index on `InviteCode`.
+
+**Verification (end-to-end):** builds clean; generated the `AddCrewAndMembership` migration and read
+it before applying (confirmed the FK actions and both unique indexes); ran `database update`; then
+queried Postgres directly to confirm the delete rules actually landed — `FK_Crews_..._CreatedByUserId`
+= `RESTRICT`, both `CrewMemberships` FKs = `CASCADE`.
+
+**Next:** `CheckIn` entity (with a required `Note`, per D10), then the crew/membership endpoints
+(create crew + generate invite code, join, list, leave) with ownership-scoped authorization.
+
+---
+
 ## Template for future entries
 
 ```
