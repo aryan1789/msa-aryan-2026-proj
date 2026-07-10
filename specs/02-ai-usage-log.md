@@ -362,6 +362,36 @@ queried Postgres directly to confirm the delete rules actually landed — `FK_Cr
 
 ---
 
+## 2026-07-11 — CheckIn entity (self-directed, AI-reviewed)
+
+**Goal:** Add the `CheckIn` entity — the record that a member showed up and trained, which is the
+atomic unit everything else (weekly target, scoreboard, streaks, XP) is computed from.
+
+**Two modelling decisions I made (with AI as a sounding board):**
+- **Reference `MembershipId`, not `UserId` + `CrewId`.** A check-in is inherently an event on a
+  membership, and pointing at the membership *structurally* prevents check-ins for a crew you're
+  not a member of (referential integrity the DB enforces, instead of an app-only check). It's also
+  consistent with how `WeeklyResult` keys off the membership, and it's one FK instead of two. This
+  deviates from the original plan's `UserId + CrewId`, deliberately.
+- **`WeekKey` as a `DateOnly` (the Monday of the week), not an ISO week string.** "Same week" is
+  then just equality and "consecutive weeks" is a 7-day difference, which keeps streak logic trivial
+  and sidesteps ISO-week year-boundary edge cases. `WeekKey` will be computed from `OccurredAt` in a
+  single helper when check-ins are created, never ad hoc.
+
+**Other config:** `Note` required (`NOT NULL`) with a 500-char cap; a non-unique composite index on
+`(MembershipId, WeekKey)` to serve the core "count a member's check-ins this week" query
+(non-unique because multiple check-ins per week are the whole point); FK → membership `Cascade`.
+
+**Verification (end-to-end):** built clean, generated the `AddCheckIn` migration and read it before
+applying, ran `database update`, then queried Postgres to confirm the live schema — `WeekKey` is
+`date`, `Note` is `varchar(500) NOT NULL`, the composite index exists, and the FK to
+`CrewMemberships` is `ON DELETE CASCADE`.
+
+**Next:** crew/membership endpoints — create crew (generate invite code, creator auto-joins), join
+by code, list/view, leave — all scoped to the authenticated user from the JWT.
+
+---
+
 ## Template for future entries
 
 ```

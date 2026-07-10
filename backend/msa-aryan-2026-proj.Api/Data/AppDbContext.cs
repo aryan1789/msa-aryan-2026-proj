@@ -12,6 +12,7 @@ public class AppDbContext : DbContext
     public DbSet<User> Users => Set<User>();
     public DbSet<Crew> Crews => Set<Crew>();
     public DbSet<CrewMembership> CrewMemberships => Set<CrewMembership>();
+    public DbSet<CheckIn> CheckIns => Set<CheckIn>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -66,5 +67,21 @@ public class AppDbContext : DbContext
             .WithMany()
             .HasForeignKey(crew => crew.CreatedByUserId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<CheckIn>()
+            .Property(checkIn => checkIn.Note)
+            .HasMaxLength(500);
+
+        // Supports the core query: check-ins for a membership within a week.
+        // Non-unique because multiple check-ins per week are expected.
+        modelBuilder.Entity<CheckIn>()
+            .HasIndex(checkIn => new { checkIn.MembershipId, checkIn.WeekKey });
+
+        // CheckIn → CrewMembership: deleting a membership removes its check-ins.
+        modelBuilder.Entity<CheckIn>()
+            .HasOne(checkIn => checkIn.Membership)
+            .WithMany(membership => membership.CheckIns)
+            .HasForeignKey(checkIn => checkIn.MembershipId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

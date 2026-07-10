@@ -10,4 +10,5 @@ public class CrewMembership
 
     public Crew Crew { get; set; } = null!;
     public User User { get; set; } = null!;
+    public ICollection<CheckIn> CheckIns { get; set; } = new List<CheckIn>();
 }
