@@ -35,15 +35,16 @@ free, mitigating SQL injection.
 ## D3 — Authentication: custom JWT in .NET (not a managed auth provider)
 
 **Decision:** Build authentication in the .NET backend — register/login, BCrypt password
-hashing, JWT tokens, RBAC roles.
+hashing, JWT tokens. (Role-based authorization was later dropped from scope — see D9.)
 
 **Alternatives considered:** Supabase Auth, Clerk, Auth0.
 
-**Why:** A managed provider would handle hashing/RBAC, but then the security work isn't *mine*
-and can't be claimed as the "Security" advanced feature, which requires my own implementation
-plus a write-up. Building it myself also makes auth a deep, genuine talking point for full-stack
-interviews (where auth questions are guaranteed). A managed DB only secures infrastructure;
-application-level security (hashing, RBAC, rate limiting, validation) is the developer's job.
+**Why:** A managed provider would handle hashing/auth, but then the security work isn't *mine*
+and can't be claimed as the "Security Measures" advanced requirement, which requires my own
+implementation plus a write-up. Building it myself also makes auth a deep, genuine talking point
+for full-stack interviews (where auth questions are guaranteed). A managed DB only secures
+infrastructure; application-level security (hashing, rate limiting, validation) is the
+developer's job.
 
 ---
 
@@ -103,3 +104,24 @@ unlayered CSS.
 places its utilities inside CSS cascade layers, and *unlayered* CSS always beats layered CSS
 regardless of specificity. Leftover template CSS (`h1 { color: ... }`) was silently overriding
 every Tailwind class. Understanding cascade layers fixed it. (Documented in the AI usage log.)
+
+---
+
+## D9 — Drop RBAC (role-based authorization) from scope
+
+**Decision:** Do not build a Leader/Member role system. `CrewMembership` keeps `WeeklyTarget` and
+`CurrentStreak` but no `Role` field. Access control is limited to **ownership scoping** — a
+logged-in user can only act on their own data and the crews they belong to (enforced via the
+authenticated user id from the JWT), not a role hierarchy.
+
+**Why:** The "Security Measures" advanced requirement asks for a **minimum of two** measures from
+{RBAC, Anti-CSRF, password hashing, data validation, rate limiting}. The project already
+implements **three** — password hashing, data validation, and rate limiting — so the requirement
+is over-satisfied without RBAC. RBAC is one *optional* item on that menu, not a mandatory
+sub-feature. Building a role system purely to tick a box it doesn't need would be scope for no
+marking benefit, and the product works as a peer crew without an admin tier. Ownership-scoped
+authorization is retained because it's baseline security any multi-user app needs (a user must not
+be able to act as another), which is distinct from RBAC and nearly free given the existing JWT.
+
+**Consequence:** supersedes the RBAC mentions in D3 and the earlier weekly plan; the three marked
+advanced requirements are **Security Measures, WebSockets, and Docker** (see D4).

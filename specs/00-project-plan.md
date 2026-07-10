@@ -44,8 +44,8 @@ Game mechanics are core to the product, not bolted on:
 The assessment marks the **top 3** listed advanced features. These are chosen to tell a strong
 **full-stack** story:
 
-1. **Security** — custom JWT authentication, BCrypt password hashing, RBAC (Leader vs Member),
-   rate limiting, input validation
+1. **Security** — custom JWT authentication, BCrypt password hashing, rate limiting, input
+   validation (satisfies the "minimum two security measures" advanced requirement — see D9)
 2. **WebSockets** — SignalR hub powering the live shared scoreboard
 3. **Docker** — `docker-compose` running API + frontend + PostgreSQL
 
@@ -57,7 +57,7 @@ logging/metrics/performance, caching. Storybook if time allows.
 
 - **User** — Id, Email, DisplayName, PasswordHash, CreatedAt, TotalXp
 - **Crew** — Id, Name, InviteCode, DefaultWeeklyTarget, CreatedByUserId, CreatedAt
-- **CrewMembership** — Id, CrewId, UserId, Role (Leader | Member), WeeklyTarget, CurrentStreak
+- **CrewMembership** — Id, CrewId, UserId, WeeklyTarget, CurrentStreak
 - **CheckIn** — Id, UserId, CrewId, OccurredAt, WeekKey, Note
 - **WeeklyResult** — Id, MembershipId, WeekKey, TargetMet, CheckInCount
 - **Achievement** / **UserAchievement** — badge definitions and unlocks
@@ -66,8 +66,8 @@ logging/metrics/performance, caching. Storybook if time allows.
 
 - **Week 0** — Repo + scaffolding (.NET backend, React frontend, Tailwind, shadcn), Docker +
   deploy skeleton, CI. *(in progress)*
-- **Week 1** — Auth + security foundation (JWT, hashing, RBAC, rate limiting), Scalar docs
-- **Week 2** — Crews, memberships, check-in CRUD with RBAC; frontend shell
+- **Week 1** — Auth + security foundation (JWT, hashing, rate limiting, validation), Scalar docs
+- **Week 2** — Crews, memberships, check-in CRUD (ownership-scoped); frontend shell
 - **Week 3** — SignalR live scoreboard + gamification engine (XP, streaks, weekly tally)
 - **Week 4** — Visual identity / polish, dark mode, badges UI, responsive, begin Cypress
 - **Week 5** — Testing, stretch features (logging/metrics, caching), production deploy
