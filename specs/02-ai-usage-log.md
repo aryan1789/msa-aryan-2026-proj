@@ -392,6 +392,41 @@ by code, list/view, leave — all scoped to the authenticated user from the JWT.
 
 ---
 
+## 2026-07-14 — Create-crew endpoint (self-directed, AI-reviewed)
+
+**Goal:** Implement `POST /Crews` — the authenticated user creates a crew, gets a unique invite
+code, and is auto-enrolled as the first member, all in one transaction.
+
+**How I worked:** Wrote the controller myself. It's `[Authorize]`-gated, binds to a dedicated
+`CreateCrewRequest` DTO (`Name`, `DefaultWeeklyTarget` only), reads the owner id from the JWT `sub`
+claim via a small `GetUserId()` helper, and adds both the `Crew` and the creator's `CrewMembership`
+(linked by navigation property) before a single `SaveChangesAsync`. Invite codes are generated with
+`RandomNumberGenerator.GetInt32` over an unambiguous alphabet (no `0/O/1/I/L`), inside a retry loop
+that regenerates only on a Postgres unique-violation.
+
+**Security reasoning I applied:**
+- **Owner id comes from the token, never the body.** `CreatedByUserId` is set from the validated
+  `sub` claim, so a client can't create a crew "as" someone else.
+- **Over-posting closed off.** The DTO exposes only the two writable fields — `Id`, `InviteCode`,
+  and `CreatedByUserId` can't be injected. I verified this rather than assuming it (see below).
+- **Invite codes are crypto-random, not `Guid`/`Random`.** `RandomNumberGenerator` so codes aren't
+  predictable; the DB unique index is the real guarantee and the retry loop is a bounded backstop
+  (max 5 attempts) that catches the rare collision without masking other DB errors.
+
+**Verification (end-to-end):** ran the API against the live Postgres and drove the full flow with
+curl — register → login → `POST /Crews`. No token → `401`; valid request → `201` with the crew +
+generated invite code; `defaultWeeklyTarget: 9` → `400` (the `[Range(1,7)]` annotation); and an
+**over-post attempt** injecting `id: 999`, `inviteCode: "HACKED01"`, `createdByUserId: 999` → `201`
+but the row came back with a server-generated id and invite code and `CreatedByUserId` from *my*
+token, proving the injected fields were ignored. Finally queried Postgres directly to confirm both
+rows landed: the `Crews` row and a matching creator `CrewMemberships` row with `WeeklyTarget`
+inherited from the crew's `DefaultWeeklyTarget` and `CurrentStreak = 0`.
+
+**Next:** join crew by invite code, then list/view and leave — all ownership-scoped to the
+authenticated user.
+
+---
+
 ## Template for future entries
 
 ```
