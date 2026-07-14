@@ -130,6 +130,29 @@ public class CrewsController : ControllerBase
         });
     }
 
+    [HttpGet]
+    public async Task<ActionResult> List()
+    {
+        var userId = GetUserId();
+
+        var crews = await _dbContext.CrewMemberships
+            .AsNoTracking()
+            .Where(m => m.UserId == userId)
+            .Select(m => new MyCrewResponse
+            {
+                Id = m.Crew.Id,
+                Name = m.Crew.Name,
+                InviteCode = m.Crew.InviteCode,
+                DefaultWeeklyTarget = m.Crew.DefaultWeeklyTarget,
+                MyWeeklyTarget = m.WeeklyTarget,
+                MyCurrentStreak = m.CurrentStreak,
+                MemberCount = m.Crew.Memberships.Count
+            })
+            .ToListAsync();
+
+        return Ok(crews);
+    }
+
     private int GetUserId()
     {
         var sub = User.FindFirstValue(JwtRegisteredClaimNames.Sub);
@@ -170,4 +193,15 @@ public class JoinCrewRequest
     [Required]
     [StringLength(8)]
     public string InviteCode { get; set; } = string.Empty;
+}
+
+public class MyCrewResponse
+{
+    public int Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string InviteCode { get; set; } = string.Empty;
+    public int DefaultWeeklyTarget { get; set; }
+    public int MyWeeklyTarget { get; set; }
+    public int MyCurrentStreak { get; set; }
+    public int MemberCount { get; set; }
 }

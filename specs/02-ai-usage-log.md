@@ -427,6 +427,44 @@ authenticated user.
 
 ---
 
+## 2026-07-15 — Join-crew endpoint (self-directed, AI-reviewed)
+
+**Goal:** Implement `POST /Crews/join` — an authenticated user submits an invite code and becomes a
+member of that crew.
+
+**How I worked:** Added a second action to `CrewsController`, reusing the `GetUserId()` helper and
+the same patterns from create-crew and the unique-email work. It normalizes the incoming code with
+`Trim().ToUpperInvariant()` (my alphabet is all-uppercase, so a user typing the code in lowercase
+still matches), looks up the crew by `InviteCode`, then creates the member's `CrewMembership` with
+`WeeklyTarget` inherited from the crew's `DefaultWeeklyTarget` and `CurrentStreak = 0`.
+
+**The cases I handled, and why:**
+- **Invalid code → `404`** — no crew with that code, nothing leaked beyond that.
+- **Already a member → `409`** — same belt-and-suspenders I used for unique email: an `AnyAsync`
+  pre-check for the friendly common-path message, **plus** a `catch (DbUpdateException) when
+  (UniqueViolation)` backstop that catches the check-then-act race against the composite
+  `(CrewId, UserId)` unique index. That catch is safe to treat as "duplicate membership" precisely
+  because that composite index is the *only* unique constraint on `CrewMemberships` — I checked
+  before assuming it.
+- **Success → `200`** with a crew/membership summary. Chose `200` over `201` because joining isn't
+  creating a new top-level resource at a client-known URL; it's the caller acting on an existing
+  crew.
+
+**One deliberate wrinkle I noted:** `[StringLength(8)]` validates the *raw* input before `Trim()`
+runs, so a code pasted with surrounding spaces would be rejected as too long rather than trimmed. A
+known UX edge case, not a correctness bug — noted rather than fixed for this project.
+
+**Verification (end-to-end):** ran the API against live Postgres with two users. User A created a
+crew; user B joined using the code **in lowercase** → `200` (proving normalization); B joining again
+→ `409`; a bogus code → `404`; an empty code → `400`; and no token → `401`. Then queried Postgres to
+confirm the crew had *both* memberships — the creator (auto-joined) and B (joined by code) — each
+with the inherited `WeeklyTarget` and `CurrentStreak = 0`.
+
+**Next:** list/view the crews the authenticated user belongs to, then leave — both ownership-scoped
+to the JWT identity.
+
+---
+
 ## Template for future entries
 
 ```
