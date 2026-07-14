@@ -78,6 +78,58 @@ public class CrewsController : ControllerBase
         });
     }
 
+    [HttpPost("join")]
+    public async Task<ActionResult> Join([FromBody] JoinCrewRequest request)
+    {
+        var userId = GetUserId();
+
+        var inviteCode = request.InviteCode.Trim().ToUpperInvariant();
+
+        var crew = await _dbContext.Crews
+            .FirstOrDefaultAsync(c => c.InviteCode == inviteCode);
+
+        if (crew is null)
+        {
+            return NotFound(new { message = "No crew found with that invite code." });
+        }
+
+        var alreadyMember = await _dbContext.CrewMemberships
+            .AnyAsync(m => m.CrewId == crew.Id && m.UserId == userId);
+
+        if (alreadyMember)
+        {
+            return Conflict(new { message = "You are already a member of this crew." });
+        }
+
+        var membership = new CrewMembership
+        {
+            CrewId = crew.Id,
+            UserId = userId,
+            WeeklyTarget = crew.DefaultWeeklyTarget,
+            CurrentStreak = 0
+        };
+
+        _dbContext.CrewMemberships.Add(membership);
+
+        try
+        {
+            await _dbContext.SaveChangesAsync();
+        }
+        catch (DbUpdateException ex) when (
+            ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+        {
+            return Conflict(new { message = "You are already a member of this crew." });
+        }
+
+        return Ok(new
+        {
+            crew.Id,
+            crew.Name,
+            membership.WeeklyTarget,
+            membership.CurrentStreak
+        });
+    }
+
     private int GetUserId()
     {
         var sub = User.FindFirstValue(JwtRegisteredClaimNames.Sub);
@@ -111,4 +163,11 @@ public class CreateCrewRequest
 
     [Range(1, 7)]
     public int DefaultWeeklyTarget { get; set; }
+}
+
+public class JoinCrewRequest
+{
+    [Required]
+    [StringLength(8)]
+    public string InviteCode { get; set; } = string.Empty;
 }
