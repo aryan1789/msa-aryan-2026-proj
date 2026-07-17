@@ -153,6 +153,39 @@ public class CrewsController : ControllerBase
         return Ok(crews);
     }
 
+    [HttpDelete("{crewId:int}/membership")]
+    public async Task<ActionResult> Leave(int crewId)
+    {
+        var userId = GetUserId();
+
+        var membership = await _dbContext.CrewMemberships
+            .Include(m => m.Crew)
+            .FirstOrDefaultAsync(m => m.CrewId == crewId && m.UserId == userId);
+
+        if (membership is null)
+        {
+            return NotFound(new { message = "You are not a member of this crew." });
+        }
+
+        if (membership.Crew.CreatedByUserId == userId)
+        {
+            return Conflict(new { message = "As the crew's creator you can't leave. Transfer ownership or delete the crew instead." });
+        }
+
+        _dbContext.CrewMemberships.Remove(membership);
+
+        try
+        {
+            await _dbContext.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // Another request already removed this membership; leaving is idempotent.
+        }
+
+        return NoContent();
+    }
+
     private int GetUserId()
     {
         var sub = User.FindFirstValue(JwtRegisteredClaimNames.Sub);

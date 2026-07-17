@@ -465,6 +465,76 @@ to the JWT identity.
 
 ---
 
+## 2026-07-15 — List-my-crews endpoint (self-directed, AI-reviewed)
+
+**Goal:** Implement `GET /Crews` — return the crews the authenticated user belongs to, and only
+those. This is where the ownership-scoped authorization model (D9, chosen instead of RBAC) actually
+shows up in an endpoint.
+
+**How I worked:** Added a `[HttpGet]` action to `CrewsController`. It queries from
+`CrewMemberships` filtered by `UserId` (the identity from the JWT via `GetUserId()`), then projects
+each membership-and-its-crew into a named `MyCrewResponse` DTO. Read-only, so I used
+`AsNoTracking()`.
+
+**The reasoning I applied:**
+- **Ownership scoping is the whole point.** The `.Where(m => m.UserId == userId)` is the
+  authorization — a user structurally cannot receive a crew they aren't a member of, because the
+  query starts from *their* memberships. No role check needed; the data model enforces it.
+- **Projected to a DTO rather than returning the entity, for two reasons:** (1) the
+  `Crew.Memberships → CrewMembership.Crew` reference cycle would break serialization if I returned
+  the raw graph, and (2) returning entities would over-expose internal/other-member data. The
+  projection returns only what a list view needs.
+- **Per-user vs crew fields.** `MyWeeklyTarget`/`MyCurrentStreak` come from the caller's own
+  membership row (`m.WeeklyTarget`/`m.CurrentStreak`); the crew fields come through the `m.Crew`
+  navigation. `MemberCount` uses `m.Crew.Memberships.Count`, which EF translates to a server-side
+  correlated subquery rather than loading rows into memory.
+
+**Verification (end-to-end):** ran the API against live Postgres with three users. A created Crew
+One; B created Crew Two and also joined Crew One (shared). A's `GET /Crews` returned **only** Crew
+One (never Crew Two) with `memberCount: 2`; B's returned both crews, each with B's own per-crew
+target; a user in no crews got `[]` with `200`; and no token got `401`. The key assertion — A can't
+see a crew she isn't in — held.
+
+**Next:** leave crew, then the ownership-scoped `GET /Crews/{id}` detail view.
+
+---
+
+## 2026-07-17 — Leave-crew endpoint (AI-assisted, AI-reviewed)
+
+**Goal:** Implement `DELETE /Crews/{crewId}/membership` — let the authenticated user remove
+themselves from a crew, scoped to their own JWT identity.
+
+**How AI was used:** I drafted the first version myself, then handed the diff to Claude Code for
+review before committing. The review confirmed the happy path but surfaced two gaps I'd missed, and
+I had it apply both fixes.
+
+**The reasoning I applied (and what review changed):**
+- **Delete the caller's own membership, nothing else.** The query filters on both `CrewId` and
+  `UserId == GetUserId()`, so a user can only ever delete *their own* row — same ownership-scoping
+  logic as list-crews. A missing membership returns `404` with a single generic message whether the
+  crew doesn't exist or the caller simply isn't in it, so the endpoint doesn't leak the existence of
+  crews the caller isn't part of.
+- **Check-ins clean up automatically.** `CheckIn → CrewMembership` is `OnDelete(Cascade)`, so
+  removing the membership removes its check-ins at the DB level — no orphaned rows, no manual
+  cleanup.
+- **[from review] Block the crew creator from leaving.** My first draft let anyone leave, including
+  the creator — which would strand the crew with a `CreatedByUserId` pointing at a non-member. The
+  query now `.Include(m => m.Crew)` and returns `409 Conflict` if `Crew.CreatedByUserId == userId`,
+  telling the creator to transfer or delete the crew instead. This also means the "last member
+  leaves → orphaned crew" case can only arise for non-creators.
+- **[from review] Handle the concurrent double-leave.** Two racing `Leave` requests would both find
+  the row, both call `Remove`, and the second `SaveChangesAsync` would throw
+  `DbUpdateConcurrencyException` (EF expects to delete 1 row, finds 0) — surfacing as a `500`. I now
+  catch it and return `204` anyway, since leaving is idempotent. This mirrors the defensive
+  unique-violation handling already in the join endpoint.
+
+**Verification:** `dotnet build` clean (0 errors; the two `NU1903` warnings are a pre-existing
+`Microsoft.OpenApi` advisory, unrelated to this change).
+
+**Next:** the ownership-scoped `GET /Crews/{id}` detail view.
+
+---
+
 ## Template for future entries
 
 ```
