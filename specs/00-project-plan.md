@@ -57,24 +57,123 @@ logging/metrics/performance, caching. Storybook if time allows.
 
 - **User** — Id, Email, DisplayName, PasswordHash, CreatedAt, TotalXp
 - **Crew** — Id, Name, InviteCode, DefaultWeeklyTarget, CreatedByUserId, CreatedAt
-- **CrewMembership** — Id, CrewId, UserId, WeeklyTarget, CurrentStreak
-- **CheckIn** — Id, UserId, CrewId, OccurredAt, WeekKey, Note
-- **WeeklyResult** — Id, MembershipId, WeekKey, TargetMet, CheckInCount
-- **Achievement** / **UserAchievement** — badge definitions and unlocks
+- **CrewMembership** — Id, CrewId, UserId, WeeklyTarget, CurrentStreak, **Xp** *(Xp to be added — per-crew
+  so the crew leaderboard ranks correctly; global `User.TotalXp` mixes crews)*
+- **CheckIn** — Id, **MembershipId**, OccurredAt, WeekKey, Note *(built; MembershipId-based, not
+  UserId/CrewId — ties a check-in to one membership)*
+- **WeeklyResult** — Id, MembershipId, WeekKey, TargetMet, CheckInCount *(to build — the per-week tally
+  the scoreboard reads)*
+- **Achievement** / **UserAchievement** — badge definitions and unlocks *(stretch; first to cut)*
 
-## Weekly breakdown (~5.5 weeks)
+---
 
-- **Week 0** — Repo + scaffolding (.NET backend, React frontend, Tailwind, shadcn), Docker +
-  deploy skeleton, CI. *(in progress)*
-- **Week 1** — Auth + security foundation (JWT, hashing, rate limiting, validation), Scalar docs
-- **Week 2** — Crews, memberships, check-in CRUD (ownership-scoped); frontend shell
-- **Week 3** — SignalR live scoreboard + gamification engine (XP, streaks, weekly tally)
-- **Week 4** — Visual identity / polish, dark mode, badges UI, responsive, begin Cypress
-- **Week 5** — Testing, stretch features (logging/metrics, caching), production deploy
-- **Week 5.5** — README, finalise /specs, record video, submit
+## Current status — 2026-07-18 (14 days to submission, target 2026-08-01)
+
+Honest snapshot. The original ~5.5-week schedule slipped; the plan below is the compressed,
+risk-first run to submission.
+
+**Done**
+- Backend security foundation: JWT auth, BCrypt hashing, rate limiting, Scalar docs — all wired in
+  `Program.cs`. (Marked feature **Security** effectively complete.)
+- Crews/memberships API: create, join, list, detail, leave — all ownership-scoped (D9).
+- `CheckIn` entity + migration.
+
+**Not started / incomplete (the 14-day workload)**
+- ❌ Check-in endpoints + the gamification engine (XP, streaks, weekly tally) — the assignment
+  **theme**.
+- ❌ SignalR live scoreboard — marked feature **WebSockets**; no hub exists.
+- ❌ Frontend — effectively 0%. Only Tailwind installed; no router, state, HTTP client, SignalR
+  client, or test runner.
+- ⚠️ **Tests** — the xUnit project exists but has **zero test files**. Tests are a *basic
+  requirement*: empty = instant fail. Must not reach submission empty.
+- ⚠️ Docker — marked feature; compose only runs Postgres, API + frontend not containerised.
+- ❌ **Deploy to Azure** — no CI, no Azure config. Highest-risk item; de-risk early.
+
+## Non-negotiables (protect these or fail regardless of feature count)
+
+- **Tests exist and pass** (backend xUnit at minimum; frontend Vitest if time).
+- **Responsive UI**, **Scalar docs** (✅), **regular commits**, a **deployed working app**.
+- The three marked advanced features functional: **Security** (✅), **WebSockets**, **Docker**.
+- The **Gamification theme** visibly present: XP, streaks, a live leaderboard/scoreboard.
+
+## 14-day execution plan (2026-07-18 → submit 2026-08-01)
+
+Risk-first: de-risk deploy early, land the backend engine, then spend the bulk on the frontend
+(the demo), then containerise, deploy, harden, document. Each phase has a **Definition of Done**
+and a **cut line** for when it runs long. Commit at every DoD.
+
+### Phase 1 — Days 1–2 (Jul 18–19): Gamification engine (backend)
+- Lock decisions **D11** (`WeekKey`: ISO-Monday + timezone), **D12** (XP formula), **D13** (streak
+  semantics: per-crew, advance-on-target-met, break via lazy settle-on-read).
+- Build `WeeklyResult` entity + migration; add `CrewMembership.Xp` + migration.
+- `CheckInsController` (`Crews/{crewId:int}/check-ins`): `POST`, `GET`, `DELETE`, ownership-scoped
+  (resolve caller's membership; non-member → generic `404`). `Note` required (D10); `OccurredAt`/
+  `WeekKey` server-derived.
+- Extract a `ScoringService`: on each check-in, upsert the `WeeklyResult` tally, award per-check-in
+  XP + a one-time target-met bonus. Wrap tally-upsert + XP in a transaction; handle the
+  `(MembershipId, WeekKey)` unique-violation like `Join` does.
+- **DoD:** check in via Scalar → `WeeklyResult` increments, `Xp` rises, target-met bonus pays once.
+- **Cut line:** badges deferred to Phase 8; streak *break* is Phase 2's lazy-settle, not here.
+
+### Phase 2 — Day 3 (Jul 20): Real-time + deploy skeleton
+- SignalR hub with per-crew groups; emit updated scoreboard state after a committed check-in.
+- `GET /Crews/{id}/scoreboard` read endpoint with **lazy streak settle** (evaluate elapsed unmet
+  weeks on read).
+- **De-risk deploy now:** stand up Azure (Container Apps API + Azure DB for PostgreSQL) and deploy
+  the current API. Redeploy each phase; do not leave deploy to the final days.
+- **DoD:** a websocket client sees a live push on check-in; the API is reachable on Azure.
+- **Cut line:** if Azure fights back, fall back to the documented Render + Supabase path (D6) —
+  don't burn two days on infra.
+
+### Phase 3 — Days 4–5 (Jul 21–22): Backend tests + frontend foundation
+- **Kill the instant-fail:** xUnit tests for the scoring logic (tally increments, target-met bonus
+  pays once, ownership `404`, `WeekKey` derivation). This makes the test project non-empty and
+  covers the highest-value logic.
+- Frontend deps + shell: React Router, Zustand, an HTTP client with JWT bearer attach, SignalR
+  client, Vitest + Testing-Library. Layout/nav skeleton.
+- Auth pages (register/login) wired to `AuthController`; token stored; protected routes.
+- **DoD:** backend tests green; can register, log in, and land on an authenticated shell.
+
+### Phase 4 — Days 6–8 (Jul 23–25): Frontend core + live scoreboard
+- Crews: list, create, join, detail views calling the existing endpoints.
+- Check-in action from the UI.
+- Scoreboard view: weekly progress bars, streaks, XP, kept/broken history — subscribed to SignalR
+  for live updates.
+- **DoD:** check in from the UI and watch the scoreboard update live — ideally in two browser
+  windows (the multiplayer/real-time demo moment).
+- **Cut line:** kept/broken *history* view is trimmable; live current-week scoreboard is not.
+
+### Phase 5 — Days 9–10 (Jul 26–27): Visual identity, theme, responsive, frontend tests
+- Distinct Tailwind visual identity (marking rewards a unique look, not generic shadcn defaults).
+- Light/dark theme toggle; responsive across mobile→desktop breakpoints.
+- Vitest + RTL component tests for a few key components/flows.
+- **DoD:** looks intentional, works at mobile width, theme toggles, frontend tests green.
+- **Cut line:** Cypress E2E is stretch — one happy-path spec (register→create crew→check in) only
+  if ahead.
+
+### Phase 6 — Day 11 (Jul 28): Docker (marked feature)
+- Extend `docker-compose` to run **API + frontend + Postgres** together; Dockerfiles for API and
+  frontend; wire env/config.
+- **DoD:** `docker compose up` brings the full stack up and the app works end-to-end locally.
+
+### Phase 7 — Day 12 (Jul 29): Production deploy (full stack)
+- Deploy frontend (Azure Static Web Apps) + API + DB; run migrations; smoke-test the live app.
+- **DoD:** the deployed app is usable end-to-end (register → crew → check in → live scoreboard).
+
+### Phase 8 — Day 13 (Jul 30): Buffer / bug bash / stretch
+- Full playthrough on the deployed app; fix what breaks. Verify rate limiting (security measure).
+- **Only if genuinely ahead:** badges/achievements, logging/metrics, caching.
+- **DoD:** a clean happy-path playthrough on production with no blocking bugs.
+
+### Phase 9 — Day 14 (Jul 31): Documentation + video + submit (Aug 1)
+- README (run/deploy instructions), finalise `/specs` (decisions D11–D13, AI usage log), record the
+  demo video, submit.
+- **DoD:** submitted with a working deployed link, tests passing, and complete specs.
 
 ## Guiding principle
 
-Deploy end-to-end early (Week 0) so deployment never becomes a last-week crisis. Commit
-frequently. Protect the basic requirements (responsive UI, tests, Scalar, regular commits) —
-neglecting any one is an instant fail. Breadth features are additive and never block the core.
+The original "deploy early" principle was missed — so **de-risking deployment (Phase 2) and
+keeping the test project non-empty (Phase 3) come before any polish.** Commit at every Definition
+of Done. Protect the non-negotiables above; every badge, animation, or stretch feature is cut
+before any non-negotiable slips. When a phase runs long, take its cut line rather than stealing
+from a later phase.
