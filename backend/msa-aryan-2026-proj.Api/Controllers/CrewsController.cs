@@ -153,6 +153,42 @@ public class CrewsController : ControllerBase
         return Ok(crews);
     }
 
+    [HttpGet("{id:int}")]
+    public async Task<ActionResult> Get(int id)
+    {
+        var userId = GetUserId();
+
+        var detail = await _dbContext.CrewMemberships
+            .AsNoTracking()
+            .Where(m => m.CrewId == id && m.UserId == userId)
+            .Select(m => new CrewDetailResponse
+            {
+                Id = m.Crew.Id,
+                Name = m.Crew.Name,
+                InviteCode = m.Crew.InviteCode,
+                DefaultWeeklyTarget = m.Crew.DefaultWeeklyTarget,
+                CreatedByUserId = m.Crew.CreatedByUserId,
+                CreatedAt = m.Crew.CreatedAt,
+                Members = m.Crew.Memberships
+                    .Select(cm => new CrewMemberResponse
+                    {
+                        UserId = cm.UserId,
+                        DisplayName = cm.User.DisplayName,
+                        WeeklyTarget = cm.WeeklyTarget,
+                        CurrentStreak = cm.CurrentStreak
+                    })
+                    .ToList()
+            })
+            .FirstOrDefaultAsync();
+
+        if (detail is null)
+        {
+            return NotFound(new { message = "You are not a member of this crew." });
+        }
+
+        return Ok(detail);
+    }
+
     [HttpDelete("{crewId:int}/membership")]
     public async Task<ActionResult> Leave(int crewId)
     {
@@ -180,7 +216,6 @@ public class CrewsController : ControllerBase
         }
         catch (DbUpdateConcurrencyException)
         {
-            // Another request already removed this membership; leaving is idempotent.
         }
 
         return NoContent();
@@ -237,4 +272,23 @@ public class MyCrewResponse
     public int MyWeeklyTarget { get; set; }
     public int MyCurrentStreak { get; set; }
     public int MemberCount { get; set; }
+}
+
+public class CrewDetailResponse
+{
+    public int Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string InviteCode { get; set; } = string.Empty;
+    public int DefaultWeeklyTarget { get; set; }
+    public int CreatedByUserId { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public List<CrewMemberResponse> Members { get; set; } = new();
+}
+
+public class CrewMemberResponse
+{
+    public int UserId { get; set; }
+    public string DisplayName { get; set; } = string.Empty;
+    public int WeeklyTarget { get; set; }
+    public int CurrentStreak { get; set; }
 }

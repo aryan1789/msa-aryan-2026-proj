@@ -535,6 +535,44 @@ I had it apply both fixes.
 
 ---
 
+## 2026-07-18 — Crew detail endpoint (self-directed, AI-reviewed)
+
+**Goal:** Implement `GET /Crews/{id}` — return one crew the authenticated caller belongs to,
+including the full member roster. First endpoint that exposes data about *other* members, so the
+question "what may a member see about co-members?" had to be answered deliberately.
+
+**How I worked:** Wrote it myself, then had Claude Code review before committing. Added a
+`[HttpGet("{id:int}")]` action projecting into a `CrewDetailResponse` DTO with a nested
+`CrewMemberResponse` list. Read-only, so `AsNoTracking()`.
+
+**The reasoning I applied:**
+- **Ownership scoping again.** The query starts from `CrewMemberships` filtered by
+  `CrewId == id && UserId == GetUserId()`, so a non-member gets `FirstOrDefault → null → 404` with
+  the same generic message used elsewhere. The endpoint never confirms the existence of a crew the
+  caller isn't in.
+- **One query, no N+1.** The roster is a nested projection (`m.Crew.Memberships.Select(...)`), which
+  EF translates into a single SQL statement with joins rather than a per-member round trip. Because
+  I project, no explicit `Include` is needed.
+- **Deliberate field exposure.** `CrewMemberResponse` returns `UserId`, `DisplayName`,
+  `WeeklyTarget`, `CurrentStreak` and nothing else — `Email` and `PasswordHash` never touch the DTO.
+  The projection is the boundary that keeps co-member data limited to what a roster view needs.
+- **Invite code stays visible to members.** The detail view returns `InviteCode`, consistent with
+  list-crews. The current model treats invites as "any member can bring others in"; if that ever
+  becomes a creator-only privilege, both endpoints change together.
+
+**Decision — roster ordering left out (for now):** review flagged that `Members` has no `OrderBy`,
+so order is DB-dependent. I chose to leave it unordered until there's a UI (e.g. a streak
+leaderboard) that actually defines the sort, rather than guess at one now. Noted so it isn't
+mistaken for an oversight.
+
+**Verification:** `dotnet build` clean (0 errors; the two pre-existing `Microsoft.OpenApi` `NU1903`
+warnings are unrelated). Not yet exercised end-to-end against Postgres — the member/non-member/`404`
+and no-sensitive-fields assertions are still to run.
+
+**Next:** check-in endpoint (record a check-in against the caller's membership).
+
+---
+
 ## Template for future entries
 
 ```
