@@ -155,3 +155,54 @@ way, consistent attendance *is* the outcome.
 
 **Consequence:** `WeeklyTarget`/`DefaultWeeklyTarget` are `int` (a session count); `CheckIn.Note`
 will be required when that entity is built. Does not affect the `Crew`/`CrewMembership` entities.
+
+---
+
+## D11 — `WeekKey` is derived in `Pacific/Auckland`, not UTC
+
+**Decision:** A check-in's `WeekKey` (and `DayKey`) is computed by converting its UTC instant to
+`Pacific/Auckland` local time, then taking the calendar date (and, for the week, that date's
+**Monday**). The timezone is a single hard-coded app constant (`WeekKeys` helper), not per-user and
+not detected.
+
+**Why:** The whole product is "did you hit your Monday–Sunday weekly target," so the week boundary
+must match how users experience days. New Zealand is UTC+12/+13, which means **UTC midnight is NZ
+*noon*** — keying weeks off UTC would roll the week over at Monday lunchtime and split every Monday
+across two weeks. That's not a rare edge; it's visibly wrong for an all-NZ user base. Evaluating the
+boundary in `Pacific/Auckland` costs one constant and makes weeks roll at NZ midnight Monday.
+
+**Note:** use the **IANA** id `"Pacific/Auckland"` (not the Windows `"New Zealand Standard Time"`)
+so it resolves on both the Windows dev box and the Linux deploy target via .NET's ICU. Per-user
+timezones were considered and rejected as scope the assignment doesn't need.
+
+---
+
+## D12 — XP formula: 10 per check-in, 50 target-met bonus
+
+**Decision:** Each check-in awards **10 XP**. The check-in that first takes a member's weekly count
+to their `WeeklyTarget` awards a **one-time 50 XP bonus** (paid once per week, on the
+`false → true` transition). XP lives on `CrewMembership.Xp` (per-crew), not global `User.TotalXp`,
+so a crew leaderboard ranks members within that crew.
+
+**Why:** Small, round, explainable numbers make the gamification legible on the demo video and on
+the leaderboard, and the bonus (5× a single check-in) makes *hitting the target* — the behaviour the
+product wants — clearly worth more than just showing up. Deleting a check-in reverses this
+symmetrically (−10, and −50 if the week drops back below target).
+
+---
+
+## D13 — One check-in per day maximum
+
+**Decision:** A member may record **at most one check-in per calendar day** (in the D11 timezone),
+enforced by a unique index on `CheckIn (MembershipId, DayKey)`. A second same-day attempt returns
+`409 Conflict`. Multiple check-ins across *different* days in a week all count toward the weekly
+target.
+
+**Why:** A check-in models *attendance for the day's session* (D10), so one per day is the honest
+unit — it stops a member inflating their weekly count by tapping the button repeatedly. Enforcing it
+at the DB level (unique index) rather than in code makes it race-safe for free, matching the
+invite-code and join patterns.
+
+**Consequence:** hitting a weekly target of N requires N distinct days, so it can't be demoed in a
+single sitting — demo crews should use a low `DefaultWeeklyTarget` (1–2) or seed prior-day
+check-ins.

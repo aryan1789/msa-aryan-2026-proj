@@ -1,13 +1,12 @@
 namespace msa_aryan_2026_proj.Api.Models;
 
-public class CheckIn
+public class WeeklyResult
 {
     public int Id { get; set; }
     public int MembershipId { get; set; }
-    public DateTime OccurredAt { get; set; } = DateTime.UtcNow;
     public DateOnly WeekKey { get; set; }
-    public DateOnly DayKey { get; set; }
-    public string Note { get; set; } = string.Empty;
+    public int CheckInCount { get; set; }
+    public bool TargetMet { get; set; }
 
     public CrewMembership Membership { get; set; } = null!;
 }

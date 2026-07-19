@@ -14,6 +14,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 builder.Services.AddControllers();
 builder.Services.AddScoped<ITokenService, TokenService>();
+builder.Services.AddScoped<IScoringService, ScoringService>();
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;

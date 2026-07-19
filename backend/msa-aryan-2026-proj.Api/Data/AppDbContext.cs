@@ -13,6 +13,7 @@ public class AppDbContext : DbContext
     public DbSet<Crew> Crews => Set<Crew>();
     public DbSet<CrewMembership> CrewMemberships => Set<CrewMembership>();
     public DbSet<CheckIn> CheckIns => Set<CheckIn>();
+    public DbSet<WeeklyResult> WeeklyResults => Set<WeeklyResult>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -77,11 +78,25 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<CheckIn>()
             .HasIndex(checkIn => new { checkIn.MembershipId, checkIn.WeekKey });
 
+        modelBuilder.Entity<CheckIn>()
+            .HasIndex(checkIn => new { checkIn.MembershipId, checkIn.DayKey })
+            .IsUnique();
+
         // CheckIn → CrewMembership: deleting a membership removes its check-ins.
         modelBuilder.Entity<CheckIn>()
             .HasOne(checkIn => checkIn.Membership)
             .WithMany(membership => membership.CheckIns)
             .HasForeignKey(checkIn => checkIn.MembershipId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<WeeklyResult>()
+            .HasIndex(result => new { result.MembershipId, result.WeekKey })
+            .IsUnique();
+
+        modelBuilder.Entity<WeeklyResult>()
+            .HasOne(result => result.Membership)
+            .WithMany(membership => membership.WeeklyResults)
+            .HasForeignKey(result => result.MembershipId)
             .OnDelete(DeleteBehavior.Cascade);
     }
 }
