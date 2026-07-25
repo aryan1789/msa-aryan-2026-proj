@@ -115,15 +115,16 @@ and a **cut line** for when it runs long. Commit at every DoD.
 - **DoD:** check in via Scalar → `WeeklyResult` increments, `Xp` rises, target-met bonus pays once.
 - **Cut line:** badges deferred to Phase 8; streak *break* is Phase 2's lazy-settle, not here.
 
-### Phase 2 — Day 3 (Jul 20): Real-time + deploy skeleton
-- SignalR hub with per-crew groups; emit updated scoreboard state after a committed check-in.
-- `GET /Crews/{id}/scoreboard` read endpoint with **lazy streak settle** (evaluate elapsed unmet
-  weeks on read).
-- **De-risk deploy now:** stand up Azure (Container Apps API + Azure DB for PostgreSQL) and deploy
-  the current API. Redeploy each phase; do not leave deploy to the final days.
-- **DoD:** a websocket client sees a live push on check-in; the API is reachable on Azure.
-- **Cut line:** if Azure fights back, fall back to the documented Render + Supabase path (D6) —
-  don't burn two days on infra.
+### Phase 2 — Real-time + Docker smoke test (done)
+- SignalR hub with per-crew groups; emit updated scoreboard state after a committed check-in. ✅
+- `GET /Crews/{id}/scoreboard` read endpoint with **lazy streak settle** (streak recomputed live
+  from met-week history on read). ✅
+- **Docker/CORS scaffolding + local container smoke test:** API `Dockerfile` written; `docker build`
+  + run the container against compose Postgres to prove the **Docker marked feature** works locally.
+- **Deploy re-sequenced:** the full **Azure cloud deploy moved to Phase 7** (de-risk trade accepted —
+  see note there). Deferring is safe: the frontend talks to `localhost` in dev, so no later phase is
+  blocked by the API not being on the cloud yet.
+- **DoD:** a websocket client sees a live push on check-in ✅; the container builds and runs locally.
 
 ### Phase 3 — Days 4–5 (Jul 21–22): Backend tests + frontend foundation
 - **Kill the instant-fail:** xUnit tests for the scoring logic (tally increments, target-met bonus
@@ -157,7 +158,17 @@ and a **cut line** for when it runs long. Commit at every DoD.
 - **DoD:** `docker compose up` brings the full stack up and the app works end-to-end locally.
 
 ### Phase 7 — Day 12 (Jul 29): Production deploy (full stack)
-- Deploy frontend (Azure Static Web Apps) + API + DB; run migrations; smoke-test the live app.
+- Deploy frontend (Azure Static Web Apps) + API (Container Apps, reusing the Phase 2 Dockerfile) +
+  Azure DB for PostgreSQL; put `Jwt:SigningKey` + connection string in Azure secrets (real key, not
+  the dev one); add the deployed frontend origin to `Cors:AllowedOrigins`; run `ef database update`
+  against cloud Postgres; smoke-test the live app.
+- **Risk note (deploy was de-risked late):** the Phase 2 deploy skeleton was traded for a local
+  container smoke test, so the *first* real cloud deploy happens here with limited runway. Mitigate:
+  (1) confirm Azure subscription + credits are active **before** this day — it's the failure mode
+  with no workaround; (2) the container already builds/runs locally, so image bugs are ruled out;
+  (3) Day 13 is the hard buffer.
+- **Cut line:** if Azure fights back more than a few hours, take the documented Render + Supabase
+  fallback (D6) — a working deployed link matters more than it being on Azure.
 - **DoD:** the deployed app is usable end-to-end (register → crew → check in → live scoreboard).
 
 ### Phase 8 — Day 13 (Jul 30): Buffer / bug bash / stretch
@@ -172,8 +183,9 @@ and a **cut line** for when it runs long. Commit at every DoD.
 
 ## Guiding principle
 
-The original "deploy early" principle was missed — so **de-risking deployment (Phase 2) and
-keeping the test project non-empty (Phase 3) come before any polish.** Commit at every Definition
-of Done. Protect the non-negotiables above; every badge, animation, or stretch feature is cut
+The original "deploy early" principle was missed, and the Phase 2 deploy skeleton was later traded
+for a local container smoke test to keep feature momentum — so the **cloud deploy is the single
+biggest late risk (Phase 7); confirm Azure access/credits early, and keep the test project
+non-empty (Phase 3) before any polish.** Commit at every Definition of Done. Protect the non-negotiables above; every badge, animation, or stretch feature is cut
 before any non-negotiable slips. When a phase runs long, take its cut line rather than stealing
 from a later phase.

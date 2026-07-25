@@ -3,8 +3,11 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using msa_aryan_2026_proj.Api.Data;
+using msa_aryan_2026_proj.Api.Hubs;
+using msa_aryan_2026_proj.Api.Models;
 using msa_aryan_2026_proj.Api.Services;
 
 namespace msa_aryan_2026_proj.Api.Controllers;
@@ -16,11 +19,22 @@ public class CheckInsController : ControllerBase
 {
     private readonly AppDbContext _dbContext;
     private readonly IScoringService _scoringService;
+    private readonly IScoreboardService _scoreboardService;
+    private readonly IHubContext<ScoreboardHub> _hubContext;
+    private readonly ILogger<CheckInsController> _logger;
 
-    public CheckInsController(AppDbContext dbContext, IScoringService scoringService)
+    public CheckInsController(
+        AppDbContext dbContext,
+        IScoringService scoringService,
+        IScoreboardService scoreboardService,
+        IHubContext<ScoreboardHub> hubContext,
+        ILogger<CheckInsController> logger)
     {
         _dbContext = dbContext;
         _scoringService = scoringService;
+        _scoreboardService = scoreboardService;
+        _hubContext = hubContext;
+        _logger = logger;
     }
 
     [HttpPost]
@@ -52,6 +66,8 @@ public class CheckInsController : ControllerBase
         {
             return Conflict(new { message = "You have already checked in today." });
         }
+
+        await EmitScoreboardUpdateAsync(crewId, membership);
 
         return Created($"/Crews/{crewId}/check-ins", new
         {
@@ -129,7 +145,25 @@ public class CheckInsController : ControllerBase
 
         await _scoringService.ReverseCheckInAsync(membership, checkIn);
 
+        await EmitScoreboardUpdateAsync(crewId, membership);
+
         return NoContent();
+    }
+
+    private async Task EmitScoreboardUpdateAsync(int crewId, CrewMembership membership)
+    {
+        try
+        {
+            var row = await _scoreboardService.BuildRowAsync(membership);
+
+            await _hubContext.Clients
+                .Group(ScoreboardHub.GroupFor(crewId))
+                .SendAsync("scoreboardUpdated", row);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to emit scoreboard update for crew {CrewId}.", crewId);
+        }
     }
 
     private int GetUserId()

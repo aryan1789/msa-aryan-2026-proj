@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using msa_aryan_2026_proj.Api.Data;
 using msa_aryan_2026_proj.Api.Models;
+using msa_aryan_2026_proj.Api.Services;
 
 namespace msa_aryan_2026_proj.Api.Controllers;
 
@@ -21,11 +22,16 @@ public class CrewsController : ControllerBase
 
     private readonly ILogger<CrewsController> _logger;
     private readonly AppDbContext _dbContext;
+    private readonly IScoreboardService _scoreboardService;
 
-    public CrewsController(ILogger<CrewsController> logger, AppDbContext dbContext)
+    public CrewsController(
+        ILogger<CrewsController> logger,
+        AppDbContext dbContext,
+        IScoreboardService scoreboardService)
     {
         _logger = logger;
         _dbContext = dbContext;
+        _scoreboardService = scoreboardService;
     }
 
     [HttpPost]
@@ -187,6 +193,21 @@ public class CrewsController : ControllerBase
         }
 
         return Ok(detail);
+    }
+
+    [HttpGet("{id:int}/scoreboard")]
+    public async Task<ActionResult> Scoreboard(int id)
+    {
+        var userId = GetUserId();
+
+        var rows = await _scoreboardService.BuildCrewAsync(id, userId);
+
+        if (rows is null)
+        {
+            return NotFound(new { message = "You are not a member of this crew." });
+        }
+
+        return Ok(rows);
     }
 
     [HttpDelete("{crewId:int}/membership")]
