@@ -1,10 +1,14 @@
 import axios from "axios"
 import { useAuthStore } from "@/store/auth"
 
-const baseURL = import.meta.env.VITE_API_URL as string | undefined
+// Single resolved base URL shared by axios and the SignalR client, so both
+// fall back consistently when VITE_API_URL is unset (otherwise the realtime
+// connection would silently die without a .env).
+export const API_BASE_URL =
+  (import.meta.env.VITE_API_URL as string | undefined) ?? "http://localhost:5194"
 
 export const api = axios.create({
-  baseURL: baseURL ?? "http://localhost:5194",
+  baseURL: API_BASE_URL,
 })
 
 // Attach the bearer token to every outgoing request when we have one.
