@@ -5,9 +5,10 @@ import { getCrew, checkIn, leaveCrew, hasCheckedInToday } from "@/lib/crews"
 import { apiErrorMessage } from "@/lib/api"
 import { useAuthStore } from "@/store/auth"
 import { useScoreboard } from "@/hooks/useScoreboard"
-import type { CrewDetail, ScoreboardRow } from "@/lib/types"
+import type { CrewDetail } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import { Modal } from "@/components/Modal"
+import { ScoreboardRowCard } from "@/components/ScoreboardRowCard"
 import { Field, inputClass } from "@/components/AuthShell"
 
 export default function CrewScreen() {
@@ -54,7 +55,7 @@ export default function CrewScreen() {
   async function handleLeave() {
     try {
       await leaveCrew(crewId)
-      navigate("/", { replace: true })
+      navigate("/crews", { replace: true })
     } catch (err) {
       if (axios.isAxiosError(err) && err.response?.status === 409) {
         setCrewError("As the creator you can't leave this crew.")
@@ -64,65 +65,106 @@ export default function CrewScreen() {
     }
   }
 
+  const total = rows?.length ?? 0
+  const metCount = rows?.filter((r) => r.targetMet).length ?? 0
+  const avgStreak =
+    total > 0 ? rows!.reduce((s, r) => s + r.currentStreak, 0) / total : 0
+  const progressPct = total > 0 ? Math.round((metCount / total) * 100) : 0
+
   return (
     <div className="flex flex-col gap-6">
-      <Link to="/" className="text-sm text-muted-foreground hover:underline">
+      <Link
+        to="/crews"
+        className="font-heading text-xs font-semibold tracking-wider text-muted-foreground uppercase transition-colors hover:text-foreground"
+      >
         ← All crews
       </Link>
 
       {crewError && <p className="text-sm text-destructive">{crewError}</p>}
 
       {crew && (
-        <div className="flex flex-col gap-4 rounded-2xl border border-border bg-background p-6 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex flex-col gap-2">
-            <h1 className="text-2xl font-semibold">{crew.name}</h1>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <span>Invite code</span>
-              <button
-                onClick={() => {
-                  navigator.clipboard?.writeText(crew.inviteCode)
-                  setCopied(true)
-                  setTimeout(() => setCopied(false), 1500)
-                }}
-                className="rounded-md border border-border bg-muted/40 px-2 py-0.5 font-mono font-semibold tracking-widest text-foreground hover:bg-muted"
-                title="Copy invite code"
+        <div className="flex flex-col gap-5 border-[1.5px] border-border bg-card p-6">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="min-w-0">
+              <h1 className="font-heading text-3xl leading-none font-extrabold tracking-wide uppercase sm:text-4xl">
+                {crew.name}
+              </h1>
+              <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                <span>
+                  {crew.members.length} member{crew.members.length === 1 ? "" : "s"}
+                </span>
+                <span className="text-border">·</span>
+                <span className="font-heading text-xs tracking-wider uppercase">Invite</span>
+                <button
+                  onClick={() => {
+                    navigator.clipboard?.writeText(crew.inviteCode)
+                    setCopied(true)
+                    setTimeout(() => setCopied(false), 1500)
+                  }}
+                  className="border border-border bg-muted/50 px-2 py-0.5 font-mono text-xs font-semibold tracking-widest text-foreground hover:bg-muted"
+                  title="Copy invite code"
+                >
+                  {crew.inviteCode}
+                </button>
+                {copied && <span className="text-xs text-success">Copied ✓</span>}
+              </div>
+            </div>
+            <div className="flex gap-2">
+              {!isOwner && (
+                <Button variant="outline" size="lg" onClick={handleLeave}>
+                  Leave
+                </Button>
+              )}
+              <Button
+                size="lg"
+                disabled={checkedInToday}
+                onClick={() => setShowCheckIn(true)}
               >
-                {crew.inviteCode}
-              </button>
-              {copied && <span className="text-xs text-green-600">Copied ✓</span>}
+                {checkedInToday ? "Checked in ✓" : "Check in"}
+              </Button>
             </div>
           </div>
-          <div className="flex gap-2">
-            {!isOwner && (
-              <Button variant="outline" size="lg" onClick={handleLeave}>
-                Leave
-              </Button>
-            )}
-            <Button
-              size="lg"
-              disabled={checkedInToday}
-              onClick={() => setShowCheckIn(true)}
-            >
-              {checkedInToday ? "Checked in today ✓" : "Check in"}
-            </Button>
-          </div>
+
+          {rows && rows.length > 0 && (
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-wrap gap-3">
+                <div className="border-[1.5px] border-border px-4 py-2 text-center">
+                  <div className="font-heading text-xl font-extrabold text-warning tabular-nums">
+                    {avgStreak.toFixed(1)}
+                  </div>
+                  <div className="text-[10px] tracking-wider text-muted-foreground uppercase">
+                    Avg Streak
+                  </div>
+                </div>
+                <div className="border-[1.5px] border-border px-4 py-2 text-center">
+                  <div className="font-heading text-xl font-extrabold text-success tabular-nums">
+                    {metCount}/{total}
+                  </div>
+                  <div className="text-[10px] tracking-wider text-muted-foreground uppercase">
+                    On Target
+                  </div>
+                </div>
+              </div>
+              <div className="h-1.5 w-full bg-muted">
+                <div className="h-full bg-primary" style={{ width: `${progressPct}%` }} />
+              </div>
+            </div>
+          )}
         </div>
       )}
 
       {celebration && (
-        <div className="rounded-xl border border-green-600/30 bg-green-500/10 px-4 py-3 text-sm font-medium text-green-700">
+        <div className="border-l-[3px] border-success bg-success-bg px-4 py-3 text-sm font-medium text-success">
           {celebration}
         </div>
       )}
 
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Scoreboard</h2>
+        <h2 className="font-heading text-lg font-bold tracking-wide uppercase">Scoreboard</h2>
         <span
-          className={`flex items-center gap-1.5 text-xs ${live ? "text-green-600" : "text-muted-foreground"}`}
+          className={`flex items-center gap-1.5 font-heading text-[11px] tracking-wider uppercase ${live ? "text-success" : "text-muted-foreground"}`}
         >
-          <span
-            className={`inline-block h-2 w-2 rounded-full ${live ? "bg-green-500" : "bg-muted-foreground/50"}`}
-          />
+          <span className={`size-2 ${live ? "bg-success" : "bg-muted-foreground/50"}`} />
           {live ? "Live" : "Offline"}
         </span>
       </div>
@@ -134,16 +176,25 @@ export default function CrewScreen() {
       )}
 
       {rows && (
-        <ol className="flex flex-col gap-2">
-          {rows.map((row, i) => (
-            <ScoreboardRowCard
-              key={row.userId}
-              row={row}
-              rank={i + 1}
-              isMe={me?.id === row.userId}
-            />
-          ))}
-        </ol>
+        <div>
+          <div className="hidden grid-cols-[32px_minmax(0,1fr)_96px_72px_112px] gap-3 border-b-[1.5px] border-border px-2 pb-2 font-heading text-[11px] tracking-wider text-muted-foreground uppercase sm:grid">
+            <div>#</div>
+            <div>Member</div>
+            <div>Reps</div>
+            <div className="text-right">XP</div>
+            <div className="text-right">Status</div>
+          </div>
+          <ol>
+            {rows.map((row, i) => (
+              <ScoreboardRowCard
+                key={row.userId}
+                row={row}
+                rank={i + 1}
+                isMe={me?.id === row.userId}
+              />
+            ))}
+          </ol>
+        </div>
       )}
 
       <CheckInModal
@@ -157,67 +208,6 @@ export default function CrewScreen() {
         }}
       />
     </div>
-  )
-}
-
-function ScoreboardRowCard({
-  row,
-  rank,
-  isMe,
-}: {
-  row: ScoreboardRow
-  rank: number
-  isMe: boolean
-}) {
-  const pct = row.weeklyTarget > 0
-    ? Math.min(100, Math.round((row.checkInCount / row.weeklyTarget) * 100))
-    : 0
-
-  return (
-    <li
-      className={`flex items-center gap-4 rounded-xl border p-4 transition-colors ${
-        isMe ? "border-ring bg-muted/40" : "border-border bg-background"
-      }`}
-    >
-      <span className="w-6 text-center text-sm font-semibold text-muted-foreground">
-        {rank}
-      </span>
-
-      <div className="flex flex-1 flex-col gap-1.5">
-        <div className="flex items-center gap-2">
-          <span className="font-medium">
-            {row.displayName}
-            {isMe && <span className="ml-1 text-xs text-muted-foreground">(you)</span>}
-          </span>
-          {row.currentStreak > 0 && (
-            <span className="rounded-full bg-orange-500/15 px-2 py-0.5 text-xs font-medium text-orange-600">
-              🔥 {row.currentStreak}
-            </span>
-          )}
-        </div>
-
-        <div className="flex items-center gap-2">
-          <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
-            <div
-              className={`h-full rounded-full transition-all ${
-                row.targetMet ? "bg-green-500" : "bg-orange-400"
-              }`}
-              style={{ width: `${pct}%` }}
-            />
-          </div>
-          <span
-            className={`text-xs tabular-nums ${
-              row.targetMet ? "font-medium text-green-600" : "text-muted-foreground"
-            }`}
-          >
-            {row.checkInCount}/{row.weeklyTarget}
-            {row.targetMet ? " ✓" : ""}
-          </span>
-        </div>
-      </div>
-
-      <span className="w-16 text-right font-semibold tabular-nums">{row.xp} XP</span>
-    </li>
   )
 }
 

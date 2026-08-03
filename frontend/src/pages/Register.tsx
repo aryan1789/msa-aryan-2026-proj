@@ -26,7 +26,7 @@ export default function Register() {
       const { data } = await api.post<LoginResponse>("/Auth/login", { email, password })
       const { token, ...user } = data
       setAuth(token, user)
-      navigate("/", { replace: true })
+      navigate("/crews", { replace: true })
     } catch (err) {
       setError(apiErrorMessage(err, "Could not create your account. Please try again."))
     } finally {

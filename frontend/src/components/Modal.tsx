@@ -31,10 +31,10 @@ export function Modal({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-sm rounded-2xl border border-border bg-background p-6 shadow-lg"
+        className="w-full max-w-sm border-t-[3px] border-primary bg-card p-6 shadow-lg"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="mb-4 text-lg font-semibold">{title}</h2>
+        <h2 className="mb-4 font-heading text-lg font-bold tracking-wide uppercase">{title}</h2>
         {children}
       </div>
     </div>

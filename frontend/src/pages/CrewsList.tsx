@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react"
 import { useNavigate } from "react-router-dom"
+import { ChevronRight } from "lucide-react"
 import axios from "axios"
 import { listCrews, createCrew, joinCrew } from "@/lib/crews"
 import { apiErrorMessage } from "@/lib/api"
@@ -7,6 +8,7 @@ import type { MyCrew } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import { Modal } from "@/components/Modal"
 import { Field, inputClass } from "@/components/AuthShell"
+import { monogram } from "@/lib/initials"
 
 export default function CrewsList() {
   const navigate = useNavigate()
@@ -27,14 +29,23 @@ export default function CrewsList() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Your crews</h1>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="font-heading text-4xl font-extrabold tracking-wide uppercase">
+            Your Crews
+          </h1>
+          {crews !== null && (
+            <p className="mt-1 text-sm text-muted-foreground">
+              {crews.length} active
+            </p>
+          )}
+        </div>
         <div className="flex gap-2">
           <Button variant="outline" size="lg" onClick={() => setShowJoin(true)}>
-            Join crew
+            Join
           </Button>
           <Button size="lg" onClick={() => setShowCreate(true)}>
-            Create crew
+            + New Crew
           </Button>
         </div>
       </div>
@@ -46,7 +57,7 @@ export default function CrewsList() {
       )}
 
       {crews !== null && crews.length === 0 && (
-        <div className="rounded-2xl border border-dashed border-border bg-background p-10 text-center">
+        <div className="border-[1.5px] border-dashed border-border p-10 text-center">
           <p className="text-sm text-muted-foreground">
             You're not in any crews yet. Create one or join with an invite code.
           </p>
@@ -54,23 +65,34 @@ export default function CrewsList() {
       )}
 
       {crews !== null && crews.length > 0 && (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="border-t-[1.5px] border-border">
           {crews.map((crew) => (
             <button
               key={crew.id}
               onClick={() => navigate(`/crews/${crew.id}`)}
-              className="flex flex-col gap-3 rounded-2xl border border-border bg-background p-5 text-left transition-colors hover:border-ring hover:bg-muted/40"
+              className="flex w-full items-center gap-4 border-b-[1.5px] border-border px-1 py-4 text-left transition-colors hover:bg-muted/50"
             >
-              <div className="flex items-start justify-between">
-                <span className="text-lg font-semibold">{crew.name}</span>
-                <span className="text-xs text-muted-foreground">
-                  {crew.memberCount} member{crew.memberCount === 1 ? "" : "s"}
-                </span>
+              <span className="flex size-11 min-w-11 items-center justify-center bg-secondary font-heading text-sm font-bold text-secondary-foreground">
+                {monogram(crew.name)}
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="truncate font-heading text-lg font-bold tracking-wide uppercase">
+                  {crew.name}
+                </div>
+                <div className="mt-0.5 text-[13px] text-muted-foreground">
+                  {crew.memberCount} member{crew.memberCount === 1 ? "" : "s"} ·{" "}
+                  {crew.myWeeklyTarget}/wk target
+                </div>
               </div>
-              <div className="flex gap-4 text-sm text-muted-foreground">
-                <span>🔥 {crew.myCurrentStreak} wk streak</span>
-                <span>🎯 {crew.myWeeklyTarget}/wk</span>
+              <div className="text-right">
+                <div className="font-heading text-2xl leading-none font-extrabold text-primary tabular-nums">
+                  {crew.myCurrentStreak}
+                </div>
+                <div className="text-[10px] tracking-wider text-muted-foreground uppercase">
+                  Wk Streak
+                </div>
               </div>
+              <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
             </button>
           ))}
         </div>
@@ -148,7 +170,7 @@ function CreateCrewModal({
           <p className="text-sm text-muted-foreground">
             Share this invite code so others can join:
           </p>
-          <div className="flex items-center justify-between rounded-lg border border-border bg-muted/40 px-4 py-3">
+          <div className="flex items-center justify-between border-[1.5px] border-border bg-muted/50 px-4 py-3">
             <span className="font-mono text-xl font-semibold tracking-widest">
               {created.inviteCode}
             </span>

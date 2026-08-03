@@ -5,7 +5,8 @@ how I critically evaluated the outputs. AI was used as a **guide and mentor** �
 concepts, reviewing decisions, and helping debug — while I wrote the code and made the decisions
 myself, so that I genuinely understand and can speak to every part of the project.
 
-Tool used: Claude (Claude Code).
+Primary tool: Claude (Claude Code). The frontend visual-design work also used
+GitHub Copilot and Claude's design tooling — called out in the relevant entry.
 
 ---
 
@@ -570,6 +571,43 @@ warnings are unrelated). Not yet exercised end-to-end against Postgres — the m
 and no-sensitive-fields assertions are still to run.
 
 **Next:** check-in endpoint (record a check-in against the caller's membership).
+
+---
+
+## 2026-08-03 — Frontend visual identity & "Crew Forge" redesign (AI-assisted)
+
+**Goal:** Give the frontend a distinct, intentional visual identity (off the default shadcn
+grayscale), add a light/dark theme toggle, make every screen responsive down to mobile, add a
+public landing page, and add frontend component/flow tests.
+
+**How AI was used — and why this entry is different:** Unlike the backend feature work — which I
+mostly researched and wrote myself, with AI limited to concept explanation and review — this phase
+leaned on AI for much of the actual production. I used **GitHub Copilot** for a lot of the
+visual-design scaffolding (the Tailwind-heavy layout markup, the landing-page structure, and the
+repetitive per-component styling), then **improved and refined it using Claude's design tooling** (a
+claude.ai design project synced into the repo) to pull everything into one coherent "Crew Forge"
+industrial/athletic system: Barlow type, uppercase headings, zero border-radius, warm cream/charcoal
+neutrals, an athletic-blue primary, and a permanently-dark header bar. Claude Code then reviewed the
+final diff.
+
+**Why I'm flagging the split:** I want the log honest about where I wrote code versus where AI
+generated it. Styling and markup are the part I was comfortable letting AI produce and then curate —
+it's low-risk (no security or data-integrity surface) and easy to evaluate by eye — as opposed to the
+auth and scoring logic, which I deliberately wrote myself so I can defend every line.
+
+**Critical evaluation / what the review changed:** The design review (Claude Code) caught things I
+then fixed: status colours (green=target-met, orange=streak) were hardcoded Tailwind palette classes
+that would break in dark mode, so I moved them to semantic `--success`/`--warning` tokens with proper
+dark values; three near-identical initials/avatar helpers were collapsed into one shared `monogram`
+helper; custom nav buttons (theme toggle, log out, landing CTAs) were missing keyboard focus rings,
+so I added `focus-visible` styles; and the theme toggle is backed by an anti-flash inline boot script
+in `index.html` kept in sync with the store's `resolveInitialTheme()`. I also removed a font
+dependency (`@fontsource-variable/geist`) left unused after the switch to Barlow.
+
+**Verification:** light/dark and 375px mobile width checked via the gstack headless browser; frontend
+tests (`ScoreboardRowCard` + `Login`) green; production build clean.
+
+**Next:** Docker full-stack compose (Phase 6).
 
 ---
 

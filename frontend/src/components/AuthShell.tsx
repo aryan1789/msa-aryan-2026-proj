@@ -1,8 +1,9 @@
 import type { ReactNode } from "react"
 
 // Shared presentational primitives for the auth pages (Login / Register).
+// Squared, warm-surfaced inputs to match the Crew Forge industrial look.
 export const inputClass =
-  "h-10 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+  "h-11 w-full border-[1.5px] border-input bg-card px-3 text-[15px] outline-none transition-colors focus-visible:border-ring"
 
 export function Field({
   label,
@@ -15,12 +16,15 @@ export function Field({
 }) {
   return (
     <label htmlFor={htmlFor} className="flex flex-col gap-1.5">
-      <span className="text-sm font-medium">{label}</span>
+      <span className="font-heading text-xs font-medium tracking-[0.06em] text-muted-foreground uppercase">
+        {label}
+      </span>
       {children}
     </label>
   )
 }
 
+// Split screen: a permanently-dark brand hero beside the form. Stacks on mobile.
 export function AuthShell({
   title,
   subtitle,
@@ -31,11 +35,33 @@ export function AuthShell({
   children: ReactNode
 }) {
   return (
-    <div className="flex min-h-svh items-center justify-center bg-muted/30 p-4">
-      <div className="w-full max-w-sm rounded-2xl border border-border bg-background p-8 shadow-sm">
-        <h1 className="text-2xl font-semibold">{title}</h1>
-        <p className="mt-1 mb-6 text-sm text-muted-foreground">{subtitle}</p>
-        {children}
+    <div className="flex min-h-svh flex-col md:flex-row">
+      <div className="relative flex flex-col justify-center overflow-hidden bg-header px-8 py-14 text-header-foreground md:flex-1 md:px-16">
+        <div className="font-heading text-6xl leading-[0.95] font-extrabold tracking-tight uppercase md:text-8xl">
+          Crew
+          <br />
+          Forge
+        </div>
+        <div className="mt-5 mb-4 h-1 w-16 bg-primary" />
+        <p className="max-w-md text-base leading-relaxed text-header-muted">
+          Show up daily. Track the streak. Beat your crew on the board. No excuses, just reps.
+        </p>
+        <div className="mt-9 flex gap-1.5">
+          {Array.from({ length: 7 }).map((_, i) => (
+            <span
+              key={i}
+              className={`h-3.5 w-5 ${i < 5 ? "bg-primary" : "bg-white/10"}`}
+            />
+          ))}
+        </div>
+      </div>
+
+      <div className="flex flex-col justify-center bg-background px-8 py-14 md:flex-1 md:px-16">
+        <div className="mx-auto w-full max-w-sm">
+          <h1 className="font-heading text-3xl font-bold tracking-wide uppercase">{title}</h1>
+          <p className="mt-1.5 mb-7 text-sm text-muted-foreground">{subtitle}</p>
+          {children}
+        </div>
       </div>
     </div>
   )

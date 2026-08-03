@@ -1,9 +1,10 @@
-import { Outlet, useNavigate } from "react-router-dom"
+import { Link, Outlet, useNavigate } from "react-router-dom"
 import { useAuthStore } from "@/store/auth"
-import { Button } from "@/components/ui/button"
+import { ThemeToggle } from "@/components/ThemeToggle"
+import { monogram } from "@/lib/initials"
 
-// Authenticated shell: app header with the signed-in user and a logout
-// control, wrapping the protected page content.
+// Crew Forge shell: a permanently-dark header bar (in both themes) with the CF
+// mark, wordmark, theme toggle, user chip, and logout, wrapping the page.
 export default function Layout() {
   const navigate = useNavigate()
   const user = useAuthStore((state) => state.user)
@@ -15,19 +16,34 @@ export default function Layout() {
   }
 
   return (
-    <div className="flex min-h-svh flex-col bg-muted/30">
-      <header className="border-b border-border bg-background">
-        <div className="mx-auto flex h-14 w-full max-w-5xl items-center justify-between px-4">
-          <span className="text-lg font-semibold">Crew Streaks</span>
-          <div className="flex items-center gap-3">
+    <div className="flex min-h-svh flex-col bg-background">
+      <header className="border-b-[3px] border-primary bg-header text-header-foreground">
+        <div className="mx-auto flex h-16 w-full max-w-5xl items-center justify-between gap-4 px-4">
+          <Link to="/crews" className="flex min-w-0 items-center gap-2.5">
+            <span className="flex size-9 min-w-9 items-center justify-center bg-primary font-heading text-lg font-extrabold tracking-wider text-primary-foreground">
+              CF
+            </span>
+            <span className="truncate font-heading text-xl font-bold tracking-[0.12em] uppercase">
+              Crew Forge
+            </span>
+          </Link>
+
+          <div className="flex flex-shrink-0 items-center gap-2.5">
+            <ThemeToggle />
             {user && (
-              <span className="hidden text-sm text-muted-foreground sm:inline">
-                {user.displayName}
+              <span
+                title={user.displayName}
+                className="hidden size-8 items-center justify-center border border-header-border bg-white/5 font-heading text-xs font-bold text-header-foreground sm:flex"
+              >
+                {monogram(user.displayName)}
               </span>
             )}
-            <Button variant="outline" size="sm" onClick={handleLogout}>
+            <button
+              onClick={handleLogout}
+              className="border border-header-border px-3 py-1.5 font-heading text-xs font-semibold tracking-wider uppercase text-header-muted transition-colors hover:bg-white/10 hover:text-header-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-header"
+            >
               Log out
-            </Button>
+            </button>
           </div>
         </div>
       </header>

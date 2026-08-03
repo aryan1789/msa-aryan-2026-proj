@@ -22,7 +22,7 @@ export default function Login() {
       const { data } = await api.post<LoginResponse>("/Auth/login", { email, password })
       const { token, ...user } = data
       setAuth(token, user)
-      navigate("/", { replace: true })
+      navigate("/crews", { replace: true })
     } catch (err) {
       setError(apiErrorMessage(err, "Could not sign in. Please try again."))
     } finally {
