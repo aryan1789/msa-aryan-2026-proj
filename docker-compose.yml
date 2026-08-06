@@ -11,6 +11,45 @@ services:
       - "5432:5432"
     volumes:
       - msa-aryan-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U msa-aryan -d msa-aryan"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: ./backend/msa-aryan-2026-proj.Api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://0.0.0.0:5194
+      ConnectionStrings__DefaultConnection: "Host=db;Port=5432;Database=msa-aryan;Username=msa-aryan;Password=localdbpassword"
+      Jwt__SigningKey: ${JWT_SIGNING_KEY}
+      RUN_MIGRATIONS: "true"
+    ports:
+      - "5194:5194"
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/5194'"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+      start_period: 5s
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: ""
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "8080:80"
 
 volumes:
   msa-aryan-db-data:
