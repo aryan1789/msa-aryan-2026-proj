@@ -59,3 +59,10 @@ export interface EarnedAchievement {
   earnedAt: string
   count: number
 }
+
+export interface CrewLeaderboardRow {
+  crewId: number
+  name: string
+  memberCount: number
+  averageStreak: number
+}

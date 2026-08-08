@@ -5,6 +5,7 @@ import Register from "@/pages/Register"
 import CrewsList from "@/pages/CrewsList"
 import CrewScreen from "@/pages/CrewScreen"
 import Achievements from "@/pages/Achievements"
+import Leaderboard from "@/pages/Leaderboard"
 import Layout from "@/components/Layout"
 import ProtectedRoute from "@/components/ProtectedRoute"
 import { useAuthStore } from "@/store/auth"
@@ -27,6 +28,7 @@ function App() {
           <Route path="/crews" element={<CrewsList />} />
           <Route path="/crews/:id" element={<CrewScreen />} />
           <Route path="/achievements" element={<Achievements />} />
+          <Route path="/leaderboard" element={<Leaderboard />} />
         </Route>
       </Route>
 

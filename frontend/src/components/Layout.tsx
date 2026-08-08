@@ -1,5 +1,5 @@
 import { Link, Outlet, useNavigate } from "react-router-dom"
-import { Trophy } from "lucide-react"
+import { Trophy, BarChart3 } from "lucide-react"
 import { useAuthStore } from "@/store/auth"
 import { ThemeToggle } from "@/components/ThemeToggle"
 import { monogram } from "@/lib/initials"
@@ -30,6 +30,13 @@ export default function Layout() {
           </Link>
 
           <div className="flex flex-shrink-0 items-center gap-2.5">
+            <Link
+              to="/leaderboard"
+              className="flex items-center gap-1.5 border border-header-border px-3 py-1.5 font-heading text-xs font-semibold tracking-wider uppercase text-header-muted transition-colors hover:bg-white/10 hover:text-header-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-header"
+            >
+              <BarChart3 className="size-3.5" />
+              <span className="hidden sm:inline">Ranks</span>
+            </Link>
             <Link
               to="/achievements"
               className="flex items-center gap-1.5 border border-header-border px-3 py-1.5 font-heading text-xs font-semibold tracking-wider uppercase text-header-muted transition-colors hover:bg-white/10 hover:text-header-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-header"
