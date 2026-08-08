@@ -12,6 +12,7 @@ function makeRow(overrides: Partial<ScoreboardRow> = {}): ScoreboardRow {
     checkInCount: 1,
     weeklyTarget: 3,
     targetMet: false,
+    badges: [],
     ...overrides,
   }
 }
@@ -76,6 +77,13 @@ describe("ScoreboardRowCard", () => {
     )
     expect(screen.getByText(/target met/i)).toBeInTheDocument()
     expect(screen.queryByText(/in progress/i)).not.toBeInTheDocument()
+  })
+
+  it("renders a chip for each earned badge", () => {
+    renderRow(makeRow({ badges: ["first-rep", "on-target"] }))
+    expect(screen.getByLabelText("First Rep")).toBeInTheDocument()
+    expect(screen.getByLabelText("On Target")).toBeInTheDocument()
+    expect(screen.queryByLabelText("Comeback")).not.toBeInTheDocument()
   })
 
   it("shows the 'You' marker only when isMe", () => {

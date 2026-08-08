@@ -1,6 +1,7 @@
 import { Flame } from "lucide-react"
 import type { ScoreboardRow } from "@/lib/types"
 import { monogram } from "@/lib/initials"
+import { BADGES } from "@/lib/badges"
 
 // One scoreboard entry, styled as a Crew Forge table row. Extracted from
 // CrewScreen so it's unit-testable. A CSS grid gives a real 5-column table on
@@ -46,6 +47,24 @@ export function ScoreboardRowCard({
             <span className="flex shrink-0 items-center gap-0.5 font-heading text-xs font-bold text-warning tabular-nums">
               <Flame className="size-3.5" />
               {row.currentStreak}
+            </span>
+          )}
+          {row.badges.length > 0 && (
+            <span className="flex shrink-0 items-center gap-1">
+              {row.badges.map((code) => {
+                const badge = BADGES[code]
+                if (!badge) return null
+                return (
+                  <span
+                    key={code}
+                    title={`${badge.name} — ${badge.description}`}
+                    aria-label={badge.name}
+                    className="flex size-5 items-center justify-center border border-border bg-muted/40 text-xs leading-none"
+                  >
+                    {badge.icon}
+                  </span>
+                )
+              })}
             </span>
           )}
         </div>

@@ -5,7 +5,8 @@ import { getCrew, checkIn, leaveCrew, hasCheckedInToday } from "@/lib/crews"
 import { apiErrorMessage } from "@/lib/api"
 import { useAuthStore } from "@/store/auth"
 import { useScoreboard } from "@/hooks/useScoreboard"
-import type { CrewDetail } from "@/lib/types"
+import type { CrewDetail, CheckInResult } from "@/lib/types"
+import { badgeName } from "@/lib/badges"
 import { Button } from "@/components/ui/button"
 import { Modal } from "@/components/Modal"
 import { ScoreboardRowCard } from "@/components/ScoreboardRowCard"
@@ -43,10 +44,16 @@ export default function CrewScreen() {
 
   const isOwner = crew !== null && me !== null && crew.createdByUserId === me.id
 
-  async function handleCheckedIn(justMet: boolean) {
+  async function handleCheckedIn(result: CheckInResult) {
     setCheckedInToday(true)
     setShowCheckIn(false)
-    setCelebration(justMet ? "🎉 You hit your weekly target! +50 XP" : "✓ Checked in! +10 XP")
+    const base = result.justMet
+      ? "🎉 You hit your weekly target! +50 XP"
+      : "✓ Checked in! +10 XP"
+    const unlocked = result.newBadges.map(badgeName)
+    setCelebration(
+      unlocked.length > 0 ? `${base} · Unlocked ${unlocked.join(", ")}` : base,
+    )
     // The server pushes the updated row over SignalR; if the socket is down,
     // fall back to a full re-fetch so the board still reflects the check-in.
     if (!live) await refresh()
@@ -221,7 +228,7 @@ function CheckInModal({
   open: boolean
   crewId: number
   onClose: () => void
-  onDone: (justMet: boolean) => void
+  onDone: (result: CheckInResult) => void
   onAlreadyCheckedIn: () => void
 }) {
   const [note, setNote] = useState("")
@@ -235,7 +242,7 @@ function CheckInModal({
     try {
       const result = await checkIn(crewId, note.trim())
       setNote("")
-      onDone(result.justMet)
+      onDone(result)
     } catch (err) {
       if (axios.isAxiosError(err) && err.response?.status === 409) {
         onAlreadyCheckedIn()

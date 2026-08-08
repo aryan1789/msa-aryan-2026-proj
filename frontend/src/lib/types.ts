@@ -35,6 +35,7 @@ export interface ScoreboardRow {
   checkInCount: number
   weeklyTarget: number
   targetMet: boolean
+  badges: string[]
 }
 
 export interface CreatedCrew {
@@ -50,4 +51,5 @@ export interface CheckInResult {
   weeklyTarget: number
   targetMet: boolean
   justMet: boolean
+  newBadges: string[]
 }
