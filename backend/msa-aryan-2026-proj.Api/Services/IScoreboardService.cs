@@ -7,4 +7,6 @@ public interface IScoreboardService
     Task<List<ScoreboardRow>?> BuildCrewAsync(int crewId, int requestingUserId);
 
     Task<ScoreboardRow> BuildRowAsync(CrewMembership membership);
+
+    Task<List<CrewLeaderboardRow>> BuildCrewLeaderboardAsync();
 }

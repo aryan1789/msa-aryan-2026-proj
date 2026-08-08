@@ -109,6 +109,51 @@ public class ScoreboardService : IScoreboardService
             badges);
     }
 
+    public async Task<List<CrewLeaderboardRow>> BuildCrewLeaderboardAsync()
+    {
+        var thisWeek = WeekKeys.WeekKeyFor(DateTime.UtcNow);
+
+        var members = await _db.CrewMemberships
+            .AsNoTracking()
+            .Select(m => new { m.Id, m.CrewId, CrewName = m.Crew.Name })
+            .ToListAsync();
+
+        if (members.Count == 0)
+        {
+            return new List<CrewLeaderboardRow>();
+        }
+
+        var membershipIds = members.Select(m => m.Id).ToList();
+
+        var metWeeks = await _db.WeeklyResults
+            .AsNoTracking()
+            .Where(w => membershipIds.Contains(w.MembershipId) && w.TargetMet)
+            .Select(w => new { w.MembershipId, w.WeekKey })
+            .ToListAsync();
+
+        var metByMembership = metWeeks
+            .GroupBy(w => w.MembershipId)
+            .ToDictionary(g => g.Key, g => g.Select(w => w.WeekKey).ToHashSet());
+
+        var streakByMembership = membershipIds.ToDictionary(
+            id => id,
+            id => StreakCalculator.Compute(metByMembership.GetValueOrDefault(id) ?? new HashSet<DateOnly>(), thisWeek));
+
+        return members
+            .GroupBy(m => new { m.CrewId, m.CrewName })
+            .Select(g => new CrewLeaderboardRow
+            {
+                CrewId = g.Key.CrewId,
+                Name = g.Key.CrewName,
+                MemberCount = g.Count(),
+                AverageStreak = g.Average(m => streakByMembership[m.Id])
+            })
+            .OrderByDescending(r => r.AverageStreak)
+            .ThenByDescending(r => r.MemberCount)
+            .ThenBy(r => r.Name)
+            .ToList();
+    }
+
     private static ScoreboardRow BuildRow(
         int userId,
         string displayName,
