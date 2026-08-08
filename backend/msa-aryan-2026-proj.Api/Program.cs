@@ -42,7 +42,10 @@ builder.Services.AddRateLimiter(options =>
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
     options.AddPolicy("auth", httpContext =>
     {
-        var partitionKey = httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        var forwardedFor = httpContext.Request.Headers["X-Forwarded-For"].ToString();
+        var partitionKey = string.IsNullOrWhiteSpace(forwardedFor)
+            ? httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown"
+            : forwardedFor.Split(',')[0].Trim();
 
         return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
         {
