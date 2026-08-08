@@ -77,6 +77,32 @@ export default function Achievements() {
           })}
         </div>
       )}
+
+      <div className="mt-2 flex flex-col gap-3">
+        <p className="font-heading text-xs tracking-wider text-muted-foreground uppercase">
+          More coming soon
+        </p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {[0, 1].map((i) => (
+            <div
+              key={i}
+              className="flex items-center gap-4 border-[1.5px] border-dashed border-border p-4 opacity-60"
+            >
+              <span className="flex size-12 min-w-12 items-center justify-center border border-dashed border-border text-2xl leading-none text-muted-foreground">
+                ?
+              </span>
+              <div className="min-w-0 flex-1">
+                <span className="font-heading font-bold tracking-wide text-muted-foreground uppercase">
+                  Coming soon
+                </span>
+                <p className="mt-0.5 text-[13px] text-muted-foreground">
+                  New challenges are in the forge.
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   )
 }
