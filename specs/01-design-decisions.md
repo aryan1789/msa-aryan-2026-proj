@@ -206,3 +206,94 @@ invite-code and join patterns.
 **Consequence:** hitting a weekly target of N requires N distinct days, so it can't be demoed in a
 single sitting — demo crews should use a low `DefaultWeeklyTarget` (1–2) or seed prior-day
 check-ins.
+
+---
+
+## D14 — Full-stack Docker Compose: same-origin, and migrate on startup
+
+**Decision:** One `docker compose up --build` brings up Postgres, the API, and the frontend
+together. The frontend is a multi-stage image (Node build → nginx serving the static bundle),
+and locally nginx reverse-proxies `/Auth`, `/Crews`, `/hubs` to the API so the browser only ever
+talks to one origin. The API applies EF migrations on startup, but only when a `RUN_MIGRATIONS`
+env flag is set (compose sets it; a plain local `dotnet run` does not).
+
+**Why:** A single command that stands the whole app up is the point of the Docker requirement,
+and same-origin (via the nginx proxy) sidesteps CORS entirely for the container path — which
+mattered because, on Docker Desktop for Windows, a browser Origin that equals a published host
+port has its `Access-Control-Allow-Origin` header dropped by the host proxy, so CORS could not
+be made to work locally regardless of config. Guarding the startup migration behind a flag keeps
+the container self-initialising (no manual `database update` step) without changing the local dev
+workflow, where migrations are still applied by hand.
+
+**Consequence:** the JWT signing key moves to a gitignored `.env` (compose reads it); the one
+nginx config has to work both in compose (where the `api` hostname resolves) and, later, in the
+cloud (where it doesn't) — see D15.
+
+---
+
+## D15 — Cloud topology: two Container Apps, not Static Web Apps (updates D6)
+
+**Decision:** On Azure, both the API and the frontend run as **Azure Container Apps** in one
+environment, backed by **Azure Database for PostgreSQL Flexible Server**. Images are built
+locally with Docker and pushed to Azure Container Registry, then rolled out. The frontend (built
+with an absolute `VITE_API_URL`) talks to the API cross-origin over real CORS.
+
+**Why (forced by the Azure for Students subscription):** the original plan (D6) put the frontend
+on Azure Static Web Apps. Two subscription limits changed that: (1) a region policy restricts
+this subscription to Australia East, where Static Web Apps isn't offered, and the other SWA
+regions are policy-blocked; (2) ACR Tasks (cloud image builds) are disabled on student
+subscriptions, so `az containerapp up --source` can't build in the cloud. Containerising the
+frontend and pushing pre-built images works around both and keeps the whole app on Azure.
+Cross-origin CORS is fine here because the Docker Desktop host-proxy quirk (D14) doesn't exist in
+the cloud.
+
+**Two production correctness fixes this surfaced:**
+- **Forwarded headers.** Container Apps terminates TLS at the ingress and forwards HTTP to the
+  container, so `UseHttpsRedirection` would loop. The API now honours `X-Forwarded-Proto` via
+  `ForwardedHeaders` middleware.
+- **Rate limiting behind a proxy.** The auth rate limiter partitioned on `RemoteIpAddress`, which
+  behind the ingress is the proxy — collapsing all callers into one bucket so it never tripped.
+  It now partitions on the real client IP from `X-Forwarded-For` (the production follow-up flagged
+  back in the 2026-07-09 rate-limiting entry, now done).
+
+**Consequence:** the single nginx config keeps its proxy blocks but resolves the `api` upstream
+lazily (a `resolver` + a variable in `proxy_pass`) so the image still boots in the cloud, where
+that hostname doesn't exist and the blocks are never hit.
+
+---
+
+## D16 — Achievement badges: four, awarded in the scoring flow
+
+**Decision:** Add four badges — **First Rep** (first check-in), **On Target** (first week the
+target is hit), **Iron Month** (a 4-week streak), and **Comeback** (target met the week after a
+broken week). Badges are stored per `CrewMembership` (one `Achievement` row per membership + code,
+unique-indexed) and awarded inside `ScoringService` right after a check-in commits. Earned codes
+are returned on the check-in response and on every scoreboard row; an `/Achievements` endpoint
+aggregates them across all of a user's crews for the achievements page.
+
+**Why:** badges are the assignment theme (gamification) made concrete, and all four are
+computable from data the app already tracks (check-ins, weekly target-met history, streaks), so
+no new tracking is needed. Scoping them per membership matches how XP and streaks already work
+(D12) — you earn a badge *in a crew* — and the unique index makes "award once" a DB guarantee
+rather than an app check, the same pattern used for invite codes and one-check-in-per-day.
+
+---
+
+## D17 — Global leaderboard ranks crews by average streak, not individuals by XP
+
+**Decision:** The cross-crew leaderboard ranks **crews** by their members' **average current
+streak**, not individuals by XP. Ties break by member count, then name.
+
+**Why:** a naive global leaderboard of individuals by XP has two problems. It isn't
+apples-to-apples — XP scales with your weekly target and how many crews you're in (D12 keeps XP
+per-crew for exactly this reason), so it would reward volume over consistency, the opposite of
+the product's point. And it breaks the private-crew model — crews are invite-only, so ranking
+people against strangers they never chose to compete with is off-thesis. Ranking *crews* by
+*average streak* fixes both: streak is already target-normalised (consecutive weeks on target,
+regardless of target size), so crews compare fairly, and it exposes crew names and aggregates
+rather than individuals across groups. It also reframes the competition as crew-vs-crew, which
+reinforces the accountability thesis instead of undermining it.
+
+**Consequence:** the unused `User.TotalXp` field stays unused (a global per-user score was
+considered and rejected here); the leaderboard reuses the exact streak computation the per-crew
+scoreboard already uses, so the two can never disagree.

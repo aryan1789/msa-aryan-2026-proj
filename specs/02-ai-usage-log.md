@@ -611,6 +611,108 @@ tests (`ScoreboardRowCard` + `Login`) green; production build clean.
 
 ---
 
+## 2026-08-07 — Full-stack Docker Compose (Phase 6, AI-assisted)
+
+**Goal:** Extend the compose file so one `docker compose up --build` brings up Postgres, the API,
+and the frontend wired together, working end-to-end with nothing on the host but Docker.
+
+**How AI was used:** Like the visual-identity phase, this was heavily AI-assisted (Claude Code)
+rather than self-written — infra config (a multi-stage frontend Dockerfile, nginx, compose
+services, healthchecks) is low-risk to let AI produce and easy to verify by running it. I made
+the two shape decisions: same-origin via an nginx reverse proxy rather than CORS, and a
+startup migration guarded by an env flag rather than a separate migrator container (recorded as
+D14).
+
+**Notable debugging / learning moments:**
+- **CORS silently failing on Docker Desktop for Windows.** With the frontend on a published host
+  port, the browser's `Access-Control-Allow-Origin` header was being dropped by the host proxy —
+  proven by a container-to-container request working while the host request didn't. That's why the
+  design landed on the nginx same-origin proxy instead of CORS.
+- **IPv6-only bind → 502.** `ASPNETCORE_URLS=http://+:8080` bound only `[::]` in the container, so
+  nginx connecting over IPv4 got connection-refused. Fixed by binding `0.0.0.0` explicitly.
+- **Startup race.** nginx resolved the API before migrations finished on first boot, so the first
+  request 502'd. Fixed with an API healthcheck plus `depends_on: condition: service_healthy`.
+
+**Critical evaluation:** I treated each 502 as a root-cause question (host proxy vs bind address
+vs startup ordering) rather than restarting and hoping, and I understood *why* the same-origin
+proxy was the right call here rather than fighting CORS.
+
+**Next:** deploy the whole thing to Azure (Phase 7).
+
+---
+
+## 2026-08-08 — Production deploy to Azure (Phase 7, AI-assisted)
+
+**Goal:** Deploy the full stack to Azure — API + frontend + PostgreSQL — on the Azure for
+Students subscription, with real secrets and a working public link.
+
+**How AI was used:** AI-assisted (Claude Code) drove the `az` CLI provisioning and the config
+changes; I did the interactive `az login` and made the topology call when the subscription forced
+a change of plan.
+
+**What went wrong and how it was worked through (all recorded in D15):**
+- **ACR Tasks are blocked on student subscriptions**, so cloud image builds (`az containerapp up
+  --source`) fail. Worked around by building images locally with Docker and pushing to ACR, which
+  is allowed.
+- **A region policy restricts the subscription to Australia East**, where Azure Static Web Apps
+  isn't available (and other SWA regions are policy-blocked). So the original SWA plan (D6) was
+  dropped and the frontend runs as a second Container App instead.
+- **HTTPS redirect loop** behind the TLS-terminating ingress — fixed by honouring
+  `X-Forwarded-Proto` via `ForwardedHeaders`.
+- **An empty EF migration** generated with `--no-build` (built against a stale assembly) crashed
+  the container on startup with a pending-model-changes error. Caught it in the revision logs,
+  regenerated the migration properly, verified the `Up()` actually created the table, and
+  redeployed.
+
+**Critical evaluation:** the subscription limits meant the deployment plan had to change under me;
+I documented each forced deviation and why (D15) rather than papering over it, which is a more
+honest — and more defensible — story than pretending the first plan worked.
+
+**Verification:** clean bring-up verified end-to-end against the deployed API (register → crew →
+check-in → scoreboard) and the Scalar docs reachable on the live URL.
+
+**Next:** production hardening and the badge/leaderboard stretch features (Phase 8).
+
+---
+
+## 2026-08-09 — Rate-limit fix, badges, achievements page, crew leaderboard (Phase 8, AI-assisted)
+
+**Goal:** Bug-bash the live app, then add the gamification stretch features — achievement badges,
+an achievements page, and a global leaderboard.
+
+**How AI was used:** AI-assisted (Claude Code) for the implementation, with me directing the
+product decisions and reviewing. The backend engine (badge awarding in `ScoringService`, the
+leaderboard aggregation) was written to match the patterns I'd established, and covered with new
+xUnit tests.
+
+**The bug the live bug-bash caught:** rate limiting wasn't firing in production. It partitioned on
+`RemoteIpAddress`, which behind the Container Apps ingress is the proxy, so every caller shared one
+bucket and the limit never tripped. Fixed by partitioning on the real client IP from
+`X-Forwarded-For` — closing out the production follow-up I'd flagged back in the 2026-07-09
+rate-limiting entry. Verified on the live API: 10 logins/minute allowed, then `429`.
+
+**The product decision I want to flag as mine (D17):** I pushed back on my own first instinct of a
+global XP leaderboard. AI laid out that ranking individuals by XP would be unfair (XP scales with
+weekly target and crew count) and would break the private-crew model, and I landed on ranking
+**crews by average streak** instead — target-normalised, so it's a fair comparison, and it keeps
+the competition crew-vs-crew, which is on-thesis. That's the design I asked for and it's recorded
+as D17.
+
+**Badges (D16):** four badges awarded in the scoring flow (First Rep, On Target, Iron Month,
+Comeback), stored per membership with a unique index so "award once" is a DB guarantee. Clickable
+badge details and a dedicated achievements page were added on the frontend.
+
+**Critical evaluation:** the value here was in verifying claims against the *deployed* app, not
+just locally — the rate-limit bug only showed up in the cloud because it was a proxy artefact — and
+in choosing a leaderboard design that fits the product rather than the flashiest one.
+
+**Verification:** backend tests 25/25 and frontend tests green; each feature verified against the
+live Azure deployment after deploying.
+
+**Next:** documentation (README + specs), demo video, submit.
+
+---
+
 ## Template for future entries
 
 ```
