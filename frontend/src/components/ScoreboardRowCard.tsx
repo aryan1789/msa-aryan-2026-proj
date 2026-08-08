@@ -11,10 +11,12 @@ export function ScoreboardRowCard({
   row,
   rank,
   isMe,
+  onBadgeClick,
 }: {
   row: ScoreboardRow
   rank: number
   isMe: boolean
+  onBadgeClick?: (code: string) => void
 }) {
   const isPodium = rank === 1
 
@@ -55,14 +57,16 @@ export function ScoreboardRowCard({
                 const badge = BADGES[code]
                 if (!badge) return null
                 return (
-                  <span
+                  <button
                     key={code}
+                    type="button"
+                    onClick={() => onBadgeClick?.(code)}
                     title={`${badge.name} — ${badge.description}`}
                     aria-label={badge.name}
-                    className="flex size-5 items-center justify-center border border-border bg-muted/40 text-xs leading-none"
+                    className="flex size-5 items-center justify-center border border-border bg-muted/40 text-xs leading-none transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     {badge.icon}
-                  </span>
+                  </button>
                 )
               })}
             </span>

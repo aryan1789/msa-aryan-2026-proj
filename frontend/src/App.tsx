@@ -4,6 +4,7 @@ import Login from "@/pages/Login"
 import Register from "@/pages/Register"
 import CrewsList from "@/pages/CrewsList"
 import CrewScreen from "@/pages/CrewScreen"
+import Achievements from "@/pages/Achievements"
 import Layout from "@/components/Layout"
 import ProtectedRoute from "@/components/ProtectedRoute"
 import { useAuthStore } from "@/store/auth"
@@ -25,6 +26,7 @@ function App() {
         <Route element={<Layout />}>
           <Route path="/crews" element={<CrewsList />} />
           <Route path="/crews/:id" element={<CrewScreen />} />
+          <Route path="/achievements" element={<Achievements />} />
         </Route>
       </Route>
 

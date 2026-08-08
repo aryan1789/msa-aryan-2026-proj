@@ -53,3 +53,9 @@ export interface CheckInResult {
   justMet: boolean
   newBadges: string[]
 }
+
+export interface EarnedAchievement {
+  code: string
+  earnedAt: string
+  count: number
+}

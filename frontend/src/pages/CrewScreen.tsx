@@ -10,6 +10,7 @@ import { badgeName } from "@/lib/badges"
 import { Button } from "@/components/ui/button"
 import { Modal } from "@/components/Modal"
 import { ScoreboardRowCard } from "@/components/ScoreboardRowCard"
+import { BadgeModal } from "@/components/BadgeModal"
 import { Field, inputClass } from "@/components/AuthShell"
 
 export default function CrewScreen() {
@@ -26,6 +27,7 @@ export default function CrewScreen() {
   const [showCheckIn, setShowCheckIn] = useState(false)
   const [celebration, setCelebration] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
+  const [selectedBadge, setSelectedBadge] = useState<string | null>(null)
 
   useEffect(() => {
     getCrew(crewId)
@@ -166,15 +168,7 @@ export default function CrewScreen() {
         </div>
       )}
 
-      <div className="flex items-center justify-between">
-        <h2 className="font-heading text-lg font-bold tracking-wide uppercase">Scoreboard</h2>
-        <span
-          className={`flex items-center gap-1.5 font-heading text-[11px] tracking-wider uppercase ${live ? "text-success" : "text-muted-foreground"}`}
-        >
-          <span className={`size-2 ${live ? "bg-success" : "bg-muted-foreground/50"}`} />
-          {live ? "Live" : "Offline"}
-        </span>
-      </div>
+      <h2 className="font-heading text-lg font-bold tracking-wide uppercase">Scoreboard</h2>
 
       {boardError && <p className="text-sm text-destructive">{boardError}</p>}
 
@@ -198,6 +192,7 @@ export default function CrewScreen() {
                 row={row}
                 rank={i + 1}
                 isMe={me?.id === row.userId}
+                onBadgeClick={setSelectedBadge}
               />
             ))}
           </ol>
@@ -214,6 +209,8 @@ export default function CrewScreen() {
           setShowCheckIn(false)
         }}
       />
+
+      <BadgeModal code={selectedBadge} onClose={() => setSelectedBadge(null)} />
     </div>
   )
 }
