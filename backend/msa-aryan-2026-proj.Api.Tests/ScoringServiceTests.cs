@@ -77,6 +77,18 @@ public sealed class ScoringServiceTests : IDisposable
         ctx.SaveChanges();
     }
 
+    private void SeedAchievement(int membershipId, string code)
+    {
+        using var ctx = NewContext();
+        ctx.Achievements.Add(new Achievement
+        {
+            MembershipId = membershipId,
+            Code = code,
+            EarnedAt = DateTime.UtcNow
+        });
+        ctx.SaveChanges();
+    }
+
     private int SeedCheckIn(int membershipId, DateOnly week, DateOnly day)
     {
         using var ctx = NewContext();
@@ -170,6 +182,87 @@ public sealed class ScoringServiceTests : IDisposable
         Assert.True(result.TargetMet);
         Assert.False(result.JustMet);
         Assert.Equal(90, result.Xp); // 80 + 10 base only
+    }
+
+    // ---- Badges ----
+
+    [Fact]
+    public async Task RecordCheckIn_FirstEver_AwardsFirstRep()
+    {
+        var membershipId = SeedMembership(weeklyTarget: 3);
+
+        using var ctx = NewContext();
+        var membership = await ctx.CrewMemberships.FirstAsync(m => m.Id == membershipId);
+        var service = new ScoringService(ctx);
+
+        var result = await service.RecordCheckInAsync(membership, "first");
+
+        Assert.Contains(Badges.FirstRep, result.NewBadges);
+    }
+
+    [Fact]
+    public async Task RecordCheckIn_CrossesTarget_AwardsOnTarget()
+    {
+        var membershipId = SeedMembership(weeklyTarget: 3, xp: 20);
+        var week = WeekKeys.WeekKeyFor(DateTime.UtcNow);
+        SeedWeeklyResult(membershipId, week, count: 2, targetMet: false);
+
+        using var ctx = NewContext();
+        var membership = await ctx.CrewMemberships.FirstAsync(m => m.Id == membershipId);
+        var service = new ScoringService(ctx);
+
+        var result = await service.RecordCheckInAsync(membership, "third");
+
+        Assert.Contains(Badges.OnTarget, result.NewBadges);
+    }
+
+    [Fact]
+    public async Task RecordCheckIn_FourthConsecutiveMetWeek_AwardsIronMonth()
+    {
+        var membershipId = SeedMembership(weeklyTarget: 1);
+        var week = WeekKeys.WeekKeyFor(DateTime.UtcNow);
+        SeedWeeklyResult(membershipId, week.AddDays(-7), count: 1, targetMet: true);
+        SeedWeeklyResult(membershipId, week.AddDays(-14), count: 1, targetMet: true);
+        SeedWeeklyResult(membershipId, week.AddDays(-21), count: 1, targetMet: true);
+
+        using var ctx = NewContext();
+        var membership = await ctx.CrewMemberships.FirstAsync(m => m.Id == membershipId);
+        var service = new ScoringService(ctx);
+
+        var result = await service.RecordCheckInAsync(membership, "fourth week");
+
+        Assert.Contains(Badges.IronMonth, result.NewBadges);
+    }
+
+    [Fact]
+    public async Task RecordCheckIn_MetAfterBrokenWeek_AwardsComeback()
+    {
+        var membershipId = SeedMembership(weeklyTarget: 1);
+        var week = WeekKeys.WeekKeyFor(DateTime.UtcNow);
+        SeedWeeklyResult(membershipId, week.AddDays(-7), count: 1, targetMet: false);
+
+        using var ctx = NewContext();
+        var membership = await ctx.CrewMemberships.FirstAsync(m => m.Id == membershipId);
+        var service = new ScoringService(ctx);
+
+        var result = await service.RecordCheckInAsync(membership, "back at it");
+
+        Assert.Contains(Badges.Comeback, result.NewBadges);
+    }
+
+    [Fact]
+    public async Task RecordCheckIn_WhenFirstRepAlreadyEarned_DoesNotReAwardIt()
+    {
+        var membershipId = SeedMembership(weeklyTarget: 3);
+        SeedAchievement(membershipId, Badges.FirstRep);
+
+        using var ctx = NewContext();
+        var membership = await ctx.CrewMemberships.FirstAsync(m => m.Id == membershipId);
+        var service = new ScoringService(ctx);
+
+        var result = await service.RecordCheckInAsync(membership, "first");
+
+        Assert.DoesNotContain(Badges.FirstRep, result.NewBadges);
     }
 
     // ---- ReverseCheckInAsync ----

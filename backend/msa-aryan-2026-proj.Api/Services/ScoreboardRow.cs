@@ -9,4 +9,5 @@ public class ScoreboardRow
     public int CheckInCount { get; set; }
     public int WeeklyTarget { get; set; }
     public bool TargetMet { get; set; }
+    public List<string> Badges { get; set; } = new();
 }

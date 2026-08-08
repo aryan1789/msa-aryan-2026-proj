@@ -9,7 +9,13 @@ public interface IScoringService
     Task ReverseCheckInAsync(CrewMembership membership, CheckIn checkIn);
 }
 
-public record CheckInResult(int Xp, int CheckInCount, int WeeklyTarget, bool TargetMet, bool JustMet);
+public record CheckInResult(
+    int Xp,
+    int CheckInCount,
+    int WeeklyTarget,
+    bool TargetMet,
+    bool JustMet,
+    IReadOnlyList<string> NewBadges);
 
 public class DuplicateCheckInException : Exception
 {

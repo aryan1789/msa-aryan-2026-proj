@@ -13,4 +13,5 @@ public class CrewMembership
     public User User { get; set; } = null!;
     public ICollection<CheckIn> CheckIns { get; set; } = new List<CheckIn>();
     public ICollection<WeeklyResult> WeeklyResults { get; set; } = new List<WeeklyResult>();
+    public ICollection<Achievement> Achievements { get; set; } = new List<Achievement>();
 }

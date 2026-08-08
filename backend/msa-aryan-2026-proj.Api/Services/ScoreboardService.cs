@@ -45,6 +45,16 @@ public class ScoreboardService : IScoreboardService
             .GroupBy(w => w.MembershipId)
             .ToDictionary(g => g.Key, g => g.Select(w => w.WeekKey).ToHashSet());
 
+        var badges = await _db.Achievements
+            .AsNoTracking()
+            .Where(a => membershipIds.Contains(a.MembershipId))
+            .Select(a => new { a.MembershipId, a.Code })
+            .ToListAsync();
+
+        var badgesByMembership = badges
+            .GroupBy(a => a.MembershipId)
+            .ToDictionary(g => g.Key, g => g.Select(a => a.Code).ToList());
+
         return members
             .Select(m => BuildRow(
                 m.UserId,
@@ -53,7 +63,8 @@ public class ScoreboardService : IScoreboardService
                 m.WeeklyTarget,
                 thisWeekResults.GetValueOrDefault(m.Id),
                 metByMembership.GetValueOrDefault(m.Id),
-                thisWeek))
+                thisWeek,
+                badgesByMembership.GetValueOrDefault(m.Id)))
             .OrderByDescending(r => r.Xp)
             .ThenByDescending(r => r.CurrentStreak)
             .ToList();
@@ -79,6 +90,12 @@ public class ScoreboardService : IScoreboardService
             .Select(u => u.DisplayName)
             .FirstAsync();
 
+        var badges = await _db.Achievements
+            .AsNoTracking()
+            .Where(a => a.MembershipId == membership.Id)
+            .Select(a => a.Code)
+            .ToListAsync();
+
         var progress = weekly is null ? null : new WeekProgress(weekly.CheckInCount, weekly.TargetMet);
 
         return BuildRow(
@@ -88,7 +105,8 @@ public class ScoreboardService : IScoreboardService
             membership.WeeklyTarget,
             progress,
             metWeeks.ToHashSet(),
-            thisWeek);
+            thisWeek,
+            badges);
     }
 
     private static ScoreboardRow BuildRow(
@@ -98,7 +116,8 @@ public class ScoreboardService : IScoreboardService
         int weeklyTarget,
         WeekProgress? week,
         ISet<DateOnly>? metWeeks,
-        DateOnly thisWeek)
+        DateOnly thisWeek,
+        List<string>? badges)
     {
         return new ScoreboardRow
         {
@@ -108,7 +127,8 @@ public class ScoreboardService : IScoreboardService
             CurrentStreak = StreakCalculator.Compute(metWeeks ?? new HashSet<DateOnly>(), thisWeek),
             CheckInCount = week?.CheckInCount ?? 0,
             WeeklyTarget = weeklyTarget,
-            TargetMet = week?.TargetMet ?? false
+            TargetMet = week?.TargetMet ?? false,
+            Badges = badges ?? new List<string>()
         };
     }
 

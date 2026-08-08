@@ -10,6 +10,7 @@ public class ScoringService : IScoringService
     private const int XpPerCheckIn = 10;
     private const int TargetMetBonus = 50;
     private const int MaxAttempts = 3;
+    private const int IronMonthWeeks = 4;
 
     private const string DayKeyIndex = "IX_CheckIns_MembershipId_DayKey";
     private const string WeekKeyIndex = "IX_WeeklyResults_MembershipId_WeekKey";
@@ -59,12 +60,15 @@ public class ScoringService : IScoringService
             {
                 await _db.SaveChangesAsync();
 
+                var newBadges = await AwardBadgesAsync(membership, week, justMet);
+
                 return new CheckInResult(
                     membership.Xp,
                     weekly.CheckInCount,
                     membership.WeeklyTarget,
                     weekly.TargetMet,
-                    justMet);
+                    justMet,
+                    newBadges);
             }
             catch (DbUpdateException ex) when (IsUniqueViolation(ex, out var constraint))
             {
@@ -115,6 +119,75 @@ public class ScoringService : IScoringService
         catch (DbUpdateConcurrencyException)
         {
         }
+    }
+
+    // Checks the badge conditions after a check-in has been saved and awards any
+    // the membership just earned. Returns the codes earned on this check-in so the
+    // caller can surface an unlock to the user.
+    private async Task<IReadOnlyList<string>> AwardBadgesAsync(CrewMembership membership, DateOnly week, bool justMet)
+    {
+        var earned = await _db.Achievements
+            .Where(a => a.MembershipId == membership.Id)
+            .Select(a => a.Code)
+            .ToListAsync();
+
+        var newlyEarned = new List<string>();
+
+        void Award(string code)
+        {
+            if (!earned.Contains(code) && !newlyEarned.Contains(code))
+            {
+                newlyEarned.Add(code);
+            }
+        }
+
+        Award(Badges.FirstRep);
+
+        if (justMet)
+        {
+            Award(Badges.OnTarget);
+        }
+
+        var metWeeks = await _db.WeeklyResults
+            .Where(w => w.MembershipId == membership.Id && w.TargetMet)
+            .Select(w => w.WeekKey)
+            .ToListAsync();
+
+        if (StreakCalculator.Compute(metWeeks.ToHashSet(), week) >= IronMonthWeeks)
+        {
+            Award(Badges.IronMonth);
+        }
+
+        if (justMet)
+        {
+            var lastWeek = week.AddDays(-7);
+            var brokeLastWeek = await _db.WeeklyResults
+                .AnyAsync(w => w.MembershipId == membership.Id && w.WeekKey == lastWeek && !w.TargetMet);
+
+            if (brokeLastWeek)
+            {
+                Award(Badges.Comeback);
+            }
+        }
+
+        if (newlyEarned.Count == 0)
+        {
+            return newlyEarned;
+        }
+
+        foreach (var code in newlyEarned)
+        {
+            _db.Achievements.Add(new Achievement
+            {
+                MembershipId = membership.Id,
+                Code = code,
+                EarnedAt = DateTime.UtcNow
+            });
+        }
+
+        await _db.SaveChangesAsync();
+
+        return newlyEarned;
     }
 
     private static bool IsUniqueViolation(DbUpdateException ex, out string? constraintName)

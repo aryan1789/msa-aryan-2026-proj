@@ -75,7 +75,8 @@ public class CheckInsController : ControllerBase
             checkInCount = result.CheckInCount,
             weeklyTarget = result.WeeklyTarget,
             targetMet = result.TargetMet,
-            justMet = result.JustMet
+            justMet = result.JustMet,
+            newBadges = result.NewBadges
         });
     }
 

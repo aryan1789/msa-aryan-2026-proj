@@ -14,6 +14,7 @@ public class AppDbContext : DbContext
     public DbSet<CrewMembership> CrewMemberships => Set<CrewMembership>();
     public DbSet<CheckIn> CheckIns => Set<CheckIn>();
     public DbSet<WeeklyResult> WeeklyResults => Set<WeeklyResult>();
+    public DbSet<Achievement> Achievements => Set<Achievement>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -97,6 +98,21 @@ public class AppDbContext : DbContext
             .HasOne(result => result.Membership)
             .WithMany(membership => membership.WeeklyResults)
             .HasForeignKey(result => result.MembershipId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<Achievement>()
+            .Property(achievement => achievement.Code)
+            .HasMaxLength(50);
+
+        // A membership earns each badge at most once.
+        modelBuilder.Entity<Achievement>()
+            .HasIndex(achievement => new { achievement.MembershipId, achievement.Code })
+            .IsUnique();
+
+        modelBuilder.Entity<Achievement>()
+            .HasOne(achievement => achievement.Membership)
+            .WithMany(membership => membership.Achievements)
+            .HasForeignKey(achievement => achievement.MembershipId)
             .OnDelete(DeleteBehavior.Cascade);
     }
 }
