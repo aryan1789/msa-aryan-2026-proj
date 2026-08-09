@@ -24,6 +24,38 @@ see, optimising for outcomes rather than passive social engagement.
 - **Crew leaderboard** — every crew ranked by its members' average weekly streak.
 - **Light / dark theme** and a responsive layout down to mobile width.
 
+## How it fits the theme (Gamification)
+
+Gamification is the whole point of Crew Forge, not a layer on top. The game mechanics from the
+brief are the product:
+
+- **Points / XP** — earned per check-in, with a bonus for hitting the weekly target.
+- **Streaks** — consecutive weeks meeting your target, shown on every scoreboard.
+- **Badges / achievements** — First Rep, On Target, Iron Month, and Comeback, awarded as you
+  play and collected on a dedicated achievements page.
+- **Leaderboards** — a live per-crew scoreboard ranked by XP, plus a global leaderboard ranking
+  crews by average streak.
+- **Progress tracking** — weekly progress ticks and a target-met/in-progress status per member.
+
+The twist on the theme is that the gamification is *social and consequential*: your misses are
+visible to your crew in real time, so the mechanics are used as a commitment device rather than
+just personal dopamine.
+
+## What makes it unique
+
+- **It's a commitment device, not another workout logger.** Apps like Hevy/Strong have a passive
+  social feed; Crew Forge makes flaking *visible* to a small group of friends, which is the actual
+  behaviour-change lever.
+- **A fair, on-thesis global leaderboard.** Rather than ranking individuals by XP (which rewards
+  whoever picks the highest target), it ranks *crews* by average streak — target-normalised, so
+  the comparison is fair, and it keeps the competition crew-vs-crew.
+- **The real-time board is load-bearing.** The SignalR live update isn't a gimmick bolted on for
+  the WebSockets requirement; the product genuinely needs everyone to see a miss the moment it
+  happens.
+- **A distinct visual identity.** A custom industrial/athletic "Crew Forge" design system (Barlow
+  type, uppercase headings, zero border-radius, warm neutrals) rather than default component-library
+  styling.
+
 ## Tech stack
 
 | Layer | Technology |
@@ -36,10 +68,16 @@ see, optimising for outcomes rather than passive social engagement.
 | Real-time | SignalR (WebSockets) |
 | Deployment | Azure Container Apps, containerised with Docker |
 
-## Marked advanced requirements
+## Advanced requirements — please mark these three
 
-Three advanced requirements are put forward for marking: **Security Measures**, **WebSockets**,
-and **Docker**.
+- [x] **Security Measures** (three: password hashing, data validation, rate limiting)
+- [x] **WebSockets** (SignalR live scoreboard)
+- [x] **Dockerize your project**
+
+Also built but **not** put forward for marking: a state management library (Zustand), light/dark
+theme switching, and multiplayer (emergent from the real-time crew design).
+
+The three marked requirements are detailed below.
 
 ### 1. Security Measures
 
@@ -124,6 +162,23 @@ Deployed on **Azure**: the API and frontend each run as an **Azure Container App
 Container Registry, then rolled out to the container apps. The frontend talks to the API over
 CORS; the API reads its connection string and JWT key from Container App secrets.
 
+## Self-reflection — what I'd do differently
+
+- **Deploy earlier.** I left the cloud deploy until near the end and hit avoidable surprises
+  (the Azure for Students subscription blocks Static Web Apps in my region and blocks cloud image
+  builds). Deploying a hello-world to Azure in week one would have surfaced those constraints while
+  there was time to plan around them.
+- **Add an Update endpoint from the start.** The API grew create/read/delete flows naturally but
+  no edit path until late; designing the check-in resource as full CRUD up front would have been
+  cleaner than retrofitting it.
+- **Wire config for the proxy vs CORS split sooner.** The local Docker setup (same-origin nginx
+  proxy) and the cloud setup (cross-origin CORS) diverged, which caused a couple of environment-only
+  bugs (a rate limiter that only worked behind the real client IP, an HTTPS redirect loop behind the
+  ingress). Testing against a deployed environment earlier would have caught these sooner.
+- **A SignalR backplane if it needed to scale.** The live scoreboard keeps group state in memory,
+  so the API is pinned to a single replica. Fine for this project, but a real deployment would use a
+  Redis backplane to scale horizontally.
+
 ## Project documentation
 
-Planning, design decisions, and the AI usage log live in [`/specs`](./specs).
+Planning, design decisions, AI prompts, and the AI usage log live in [`/specs`](./specs).

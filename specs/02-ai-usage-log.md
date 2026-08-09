@@ -713,6 +713,30 @@ live Azure deployment after deploying.
 
 ---
 
+## 2026-08-09 — Pre-submission audit + documentation (Phase 9, AI-assisted)
+
+**Goal:** Check the whole project honestly against the assessment brief before submitting, fix any
+gaps, and finalise the README and `/specs`.
+
+**How AI was used:** I gave the AI the assessment PDF and asked it to audit the project against the
+requirements rather than just confirm it was fine. The audit found three real gaps and I had them
+fixed:
+- **CRUD was missing "Update"** — the API had create/read/delete flows but no PUT/PATCH. Added an
+  edit-check-in-note endpoint so check-ins are a full CRUD resource, verified end-to-end on the
+  deployed API (edit persists; empty note → 400; ownership-scoped 404).
+- **README** was missing required sections — added a theme section, a "what makes it unique"
+  section, an explicit advanced-features checklist, and a self-reflection.
+- **`/specs`** had no dedicated prompts file — added `03-ai-prompts.md` with the actual prompts
+  used during development.
+
+**Critical evaluation:** the point of this pass was to *not* take "it works" at face value. The app
+did work, but "works" and "meets every listed requirement" aren't the same thing — the missing
+Update endpoint is a basic requirement that a passing demo would otherwise have hidden.
+
+**Next:** record the demo video and submit.
+
+---
+
 ## Template for future entries
 
 ```
