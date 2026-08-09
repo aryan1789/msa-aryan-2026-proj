@@ -123,6 +123,40 @@ public class CheckInsController : ControllerBase
         });
     }
 
+    [HttpPut("{checkInId:int}")]
+    public async Task<ActionResult> Update(int crewId, int checkInId, [FromBody] UpdateCheckInRequest request)
+    {
+        var note = request.Note?.Trim() ?? string.Empty;
+
+        if (note.Length == 0)
+        {
+            return BadRequest(new { message = "A check-in note is required." });
+        }
+
+        var userId = GetUserId();
+
+        var membership = await _dbContext.CrewMemberships
+            .FirstOrDefaultAsync(m => m.CrewId == crewId && m.UserId == userId);
+
+        if (membership is null)
+        {
+            return NotFound(new { message = "That check-in was not found." });
+        }
+
+        var checkIn = await _dbContext.CheckIns
+            .FirstOrDefaultAsync(c => c.Id == checkInId && c.MembershipId == membership.Id);
+
+        if (checkIn is null)
+        {
+            return NotFound(new { message = "That check-in was not found." });
+        }
+
+        checkIn.Note = note;
+        await _dbContext.SaveChangesAsync();
+
+        return Ok(new { checkIn.Id, checkIn.Note });
+    }
+
     [HttpDelete("{checkInId:int}")]
     public async Task<ActionResult> Delete(int crewId, int checkInId)
     {
@@ -181,6 +215,13 @@ public class CheckInsController : ControllerBase
 }
 
 public class CreateCheckInRequest
+{
+    [Required]
+    [StringLength(500)]
+    public string Note { get; set; } = string.Empty;
+}
+
+public class UpdateCheckInRequest
 {
     [Required]
     [StringLength(500)]
